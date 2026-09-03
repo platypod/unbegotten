@@ -69,42 +69,47 @@ to our pod exactly like it already routes to every other service in the
 `pokeclicker`/`rommapp`); the nginx/Caddy container is just what runs *inside*
 that pod to actually serve the files.
 
-### Prod deploy (open — deliberately deferred)
+### Prod deploy (resolved: GitOps via Flux)
 
-Getting that new image actually running on prod is the part still undecided.
-The constraint driving this: **no cluster credential should ever be stored in
-GitHub**, even scoped/short-lived, because that's a credential capable of
-touching prod sitting on a third party's infrastructure. Three ways to square
-that with "deploy on release":
+**Settled: platypod adopted the GitOps route.** This was open for a while, with
+manual deploy, in-cluster GitOps, and a scoped webhook receiver all on the
+table; the driving constraint was that *no cluster credential should ever be
+stored in GitHub*, even a scoped, short-lived one. The `stack` repo went to
+Flux CD in the end — prod cut over 2026-08-24, the `dev`/`main` branch split
+landed 2026-09-02 — which satisfies that constraint by construction:
+controllers *inside* the cluster pull, GitHub never pushes, and no cluster
+credential exists on GitHub's side at all.
 
-1. **Manual deploy (matches the org today).** CI stops at pushing the image to
-   GHCR; deploying is `make deploy MODULE=games ENV=prd`, run locally with the
-   kubeconfig already on your machine. This is what every other platypod repo
-   does, and it's not a compromise — it's *already* credential-free, because
-   GitHub Actions never touches the cluster at all in this flow. Zero new
-   infrastructure. Downside: a manual step between "release tagged" and
-   "live."
+End to end, from a tag in this repo to a running pod:
 
-2. **GitOps (Flux CD) for genuine credential-free automation.** Run a
-   controller *inside* the cluster that watches GHCR itself for new image
-   tags and deploys them — the cluster pulls, GitHub never pushes, so there's
-   nothing to leak on GitHub's side by construction. This is the standard
-   answer to "auto-deploy without trusting a third party with prod access."
-   The real cost: it's infrastructure work spanning the `stack`/`infra`
-   repos (installing Flux, wiring `image-reflector-controller` +
-   `image-automation-controller`), and a new standing service to maintain —
-   not something to introduce as a side effect of shipping one game. Worth a
-   dedicated conversation if/when auto-deploy actually matters.
+1. Push a git tag → GitHub Actions builds and pushes
+   `ghcr.io/platypod/unbegotten:<tag>` (the step above; still no cluster
+   credentials involved).
+2. Flux's `image-reflector-controller`, running in each cluster, scans GHCR and
+   resolves the newest matching tag. `stack` declares two policies for this
+   image: `unbegotten` (final releases) and `unbegotten-local` (range ending
+   `-0`, so `-dev.N` prereleases match too).
+3. `image-automation-controller` commits the new pin to `stack`'s **`dev`**
+   branch — `apps/base/values/games.yaml` for the final-release policy,
+   `apps/local-overlay/games-image.yaml` for the local prerelease one. It only
+   ever writes to `dev`, including prod's own instance of it.
+4. The local cluster tracks `dev` and picks the change up within a poll
+   interval. Prod tracks `main`, and reaches it only when `dev` is merged into
+   `main` — **that merge is the entire prod promotion.** No tag gate, no
+   manual deploy step.
 
-3. **Small self-hosted webhook receiver.** A custom in-cluster service that
-   GitHub pings on tag push, authenticated with a narrow shared secret that
-   can only trigger "redeploy the games module" — nothing else. Smaller
-   blast radius than a kubeconfig, less infrastructure than Flux, but it's
-   bespoke code with its own maintenance burden.
+There is no `make deploy` any more, in `stack` or anywhere else.
 
-**Current state: staying on option 1 (manual) until there's a real reason to
-invest in 2 or 3.** Revisit this section and log the decision in
-`docs/archive/project-log.md` when that happens.
+**Enabling the service on a cluster is separate from shipping an image**, and
+is a one-time thing. Each service carries an `enable` flag in the private
+`platypod-sops` repo (`clusters/<env>/secrets.enc.yaml`, SOPS/age-encrypted);
+that Secret is the last `valuesFrom` entry on every `HelmRelease`, so it
+overrides the chart's own default. Flip it and push to the branch that cluster
+tracks. Unbegotten was enabled on local this way on 2026-09-03.
+
+The authoritative write-ups live in `stack`: `docs/branching.md` for which
+branch deploys where, `docs/operations.md` for the day-to-day, and
+`docs/flux-migration.md` for the migration record and its gotchas.
 
 ## Design, backlog & bug tracking
 

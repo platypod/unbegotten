@@ -2668,3 +2668,43 @@ rule prescribes for κ>0. The Weft now follows the *written* direction
 faithfully; the Fold itself does not yet, and reconciling that is a
 larger, riskier change than this one — it touches the game's most
 finished space rather than its least.
+
+## 2026-09-03 — Deploy automation: the open question, closed by platypod's Flux migration
+
+The 2026-07-15 "Pre-commit hooks & web deployment" entry left
+deployment-to-prod deliberately undecided,
+between a manual `make deploy MODULE=games ENV=prd`, an in-cluster GitOps
+setup, and a small scoped webhook receiver. It was judged then that GitOps was
+"real infrastructure work spanning the `stack`/`infra` repos… not something to
+introduce as a side effect of shipping one game."
+
+That work happened anyway, for its own reasons: platypod's `stack` migrated to
+**Flux CD**, prod cutting over 2026-08-24, with the `dev`/`main` deploy split
+following 2026-09-02. So the option that was too expensive to adopt *for this
+game* arrived for free, and the question is closed on the GitOps answer.
+
+What that means concretely for unbegotten:
+
+- Tag → GitHub Actions → `ghcr.io/platypod/unbegotten:<tag>` is unchanged.
+- `stack` declares an `ImageRepository` for the image plus two policies —
+  `unbegotten` (final releases only) and `unbegotten-local` (range ending
+  `-0`, so `-dev.N` prereleases match).
+- `image-automation-controller` writes the resolved pin to `stack`'s `dev`
+  branch. Local tracks `dev`; prod tracks `main`; merging `dev` into `main`
+  *is* the prod deploy.
+- The driving constraint — never store a cluster credential in GitHub — holds
+  by construction rather than by discipline: the cluster pulls, GitHub is
+  never given anything to push with.
+
+`make deploy` no longer exists in `stack` at all, so the manual option isn't
+merely unchosen, it's gone.
+
+Separately, the game was **enabled on the local cluster** for the first time on
+this date. Enabling is distinct from shipping an image: each service has an
+`enable` flag in the private `platypod-sops` repo
+(`clusters/<env>/secrets.enc.yaml`, SOPS/age-encrypted), and that Secret is the
+last `valuesFrom` entry on every `HelmRelease`, so it overrides the chart
+default. `v0.15.2` came up behind Authelia at `unbegotten.platypod.local`.
+
+`README.md` §Deployment and `docs/rules/guidelines.md` §6.3 have been rewritten
+accordingly; both previously described the deferred state.
