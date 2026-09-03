@@ -11,9 +11,12 @@
 				overflow: hidden;
 				background: #000;
 			}
+			/*
+				The canvas's SIZE is deliberately not here — it is an inline
+				style attribute on the element itself. See the comment above
+				the <canvas> before moving it up here.
+			*/
 			#webgl {
-				width: 100%;
-				height: 100%;
 				display: block;
 				touch-action: none;
 				outline: none;
@@ -21,7 +24,28 @@
 		</style>
 	</head>
 	<body>
-		<canvas id="webgl"></canvas>
+		<!--
+			The size MUST stay inline. Heaps' GlDriver.resize() writes its own
+			inline width/height onto this canvas, but only `if
+			(canvas.style.width == "")` — that guard is how it defers to a page
+			that has already sized the canvas itself.
+
+			Sizing it from the stylesheet instead leaves that property empty,
+			so on the first frame Heaps pins the canvas to whatever pixel size
+			it measured then. Inline beats the stylesheet, so the `100%` rule
+			is dead from that moment: the canvas stops tracking the viewport,
+			its bounding rect never changes again, and the ResizeObserver Heaps
+			installs on it therefore never fires. The result is a game frozen
+			at whatever size the window happened to be while it was loading —
+			resize, rotate, or open devtools and the picture stays put.
+
+			With the size inline, the browser lays the canvas out and Heaps
+			only ever reads it: ResizeObserver -> Window.checkResize ->
+			Engine.onResized -> h2d.Scene.checkResize + hxd.App.onResize, and
+			h3d.scene.Scene re-derives camera.screenRatio from the engine on
+			every render. Nothing in Haxe has to handle this.
+		-->
+		<canvas id="webgl" style="width: 100%; height: 100%"></canvas>
 		<script src="game.js"></script>
 	</body>
 </html>
