@@ -1,11 +1,78 @@
 package graphics;
 
 /**
-	Placeholder flat-fill colors used across biomes and entities, gathered
-	here so a project-wide palette pass (real art, not flat placeholders)
-	has one place to start from instead of several scattered constants.
+	The project palette.
+
+	**The working direction is monotone cyberpunk** (asked directly,
+	2026-09-04): "futuristic, with monotone, buildings in a cyberpunk
+	ambiance for now. Empty, deserted, without identity so that the very few
+	things we want to pop out do pop out more."
+
+	That last clause is the whole system, and it is a **contrast budget**
+	rather than a colour scheme:
+
+	- **The base ramp is value-only.** `VOID` through `SURFACE_EDGE` below
+	  are one desaturated blue-grey walked from near-black to a dim
+	  highlight. Nothing in the base tier is allowed to be saturated, so
+	  ordinary terrain, walls and buildings can never compete for the eye.
+	  Silhouette and value do all the work — which is also what makes a
+	  deserted city read as deserted rather than as unfinished.
+	- **The signal tier is the only saturated thing on screen**, and it is
+	  deliberately small: four entries, each with one meaning. Spending
+	  saturation on anything that is not load-bearing is what breaks this,
+	  so a new colour wants a reason, not a taste.
+
+	**This supersedes `docs/game/art-and-audio.md`'s hue-encodes-curvature
+	rule for now, and that is an open question rather than a settled
+	reversal** — see that file's own status note. The curvature gradient was
+	a proposal that has never been validated in the engine; the Tron
+	register the Fold already had is what is actually being tried. Neither is
+	committed to.
+
+	Entries below the palette are per-object placeholders, several of them
+	predating any direction at all (the grass and trees especially, which are
+	organic and hue-arbitrary against everything above). They are kept
+	working, not endorsed.
 **/
 class Colours {
+	// ------------------------------------------------------------------
+	// Base ramp — value-only, never saturated. ~95% of every frame.
+	// ------------------------------------------------------------------
+
+	/** Backdrop behind everything; the clear colour a biome falls back to. Near-black with just enough blue to not read as a dead pixel. **/
+	public static inline final VOID:Int = 0xFF05070A;
+
+	/** Deepest built surface — recessed panel faces, the inside of things. **/
+	public static inline final SURFACE_DEEP:Int = 0xFF0A0E16;
+
+	/** The default floor/ground value across biomes. **/
+	public static inline final SURFACE_BASE:Int = 0xFF111A22;
+
+	/** Ordinary wall and building mass — the value most of a city block is. **/
+	public static inline final SURFACE_MID:Int = 0xFF1B2530;
+
+	/** Raised or nearer massing, so blocks separate from each other by value alone. **/
+	public static inline final SURFACE_RAISED:Int = 0xFF2A3846;
+
+	/** Top edges, rims, and the lit lip of a ledge — the brightest a non-signal surface is allowed to be. **/
+	public static inline final SURFACE_EDGE:Int = 0xFF3D4E5E;
+
+	// ------------------------------------------------------------------
+	// Signal tier — saturated, rare, one meaning each. Spend sparingly.
+	// ------------------------------------------------------------------
+
+	/** Powered / alive / running. The ambient cyberpunk tell, and the only signal allowed to appear at scale (a live cell field is still mostly dark). **/
+	public static inline final SIGNAL_LIVE:Int = 0xFF38E8FF;
+
+	/** The actionable thing — what the player can do something with right now. **/
+	public static inline final SIGNAL_ACT:Int = 0xFF3BC47A;
+
+	/** Refused / locked / dying. Anything that answers "no". **/
+	public static inline final SIGNAL_DENY:Int = 0xFFE5484D;
+
+	/** Notable and followable — a thing worth crossing a space for. The rarest of the four; if several are visible at once it has stopped meaning anything. **/
+	public static inline final SIGNAL_MARK:Int = 0xFFFFB627;
+
 	/** `GrassMesh`'s blade gradient — darker at the root, lighter/yellower at the tip. **/
 	public static inline final GRASS_BASE:Int = 0xFF2E5C2E;
 
@@ -58,7 +125,7 @@ class Colours {
 	public static inline final MOBIUS_BAND_B:Int = 0xFF3C6EB0;
 
 	/** `biomes.conway.ConwayMesh` floor tiles — dim "dead" cells. **/
-	public static inline final CONWAY_TILE_DEAD:Int = 0xFF111A22;
+	public static inline final CONWAY_TILE_DEAD:Int = SURFACE_BASE;
 
 	/**
 		`tools.geodesic.GeodesicMesh`'s own pentagon floor tiles — the 12
@@ -89,7 +156,7 @@ class Colours {
 		brighter when they birth, dimmer when they age, dimmer again when
 		they die").
 	**/
-	public static inline final CONWAY_TILE_LIVE:Int = 0xFF3BC47A;
+	public static inline final CONWAY_TILE_LIVE:Int = SIGNAL_ACT;
 
 	/**
 		`tools.geodesic.GeodesicMesh`'s own dying-cell blocks — red instead
@@ -101,7 +168,7 @@ class Colours {
 		older square-grid biome; this only recolors `GeodesicMesh`'s own
 		`Dying` bucket, not a reversal of the earlier one.
 	**/
-	public static inline final CONWAY_TILE_DYING:Int = 0xFFE5484D;
+	public static inline final CONWAY_TILE_DYING:Int = SIGNAL_DENY;
 
 	/**
 		`tools.geodesic.GeodesicMesh`'s own tracked-glider live blocks — a
@@ -110,7 +177,7 @@ class Colours {
 		followable thing against the ambient soup, not just a brighter
 		blob of the same color.
 	**/
-	public static inline final CONWAY_TILE_GLIDER:Int = 0xFFFFB627;
+	public static inline final CONWAY_TILE_GLIDER:Int = SIGNAL_MARK;
 
 	/**
 		`tools.geodesic.GeodesicGliderTracker`'s own per-site palette
@@ -138,10 +205,10 @@ class Colours {
 	];
 
 	/** `biomes.conway.ConwayMesh` closed-edge walls' dark base panel — `graphics.shaders.ConwayWallGlow` paints the actual Tron lines on top. **/
-	public static inline final CONWAY_WALL_PANEL:Int = 0xFF0A0E16;
+	public static inline final CONWAY_WALL_PANEL:Int = SURFACE_DEEP;
 
 	/** `biomes.conway.ConwayMesh` closed-edge walls' emissive rim/seam color, see `graphics.shaders.ConwayWallGlow`. Also the color of an *opened* reactive wall's own faded "ghost" — same panel, just at `ConwayMesh.GHOST_WALL_OPACITY`. **/
-	public static inline final CONWAY_WALL_GLOW:Int = 0xFF38E8FF;
+	public static inline final CONWAY_WALL_GLOW:Int = SIGNAL_LIVE;
 
 	/** `biomes.twosided.MarkModel`'s own posts — a hot pink that exists in no other biome, so a mark can never be mistaken for scenery while the mechanic is being tested. **/
 	public static inline final MARK_POST:Int = 0xFFFF3FA0;
@@ -171,26 +238,23 @@ class Colours {
 	public static inline final TREE_FOLIAGE_TIP:Int = 0xFF3D7A45;
 
 	/**
-		`biomes.weft.WeftMesh`'s own floor — dim warm umber, matte. Replaces
-		the grass texture the Weft inherited from `GridMesh` (the pre-
-		direction maze prototype): grass is the one material in the game
-		that reads as organic rather than as a cell, and its own hue carries
-		no relation to curvature at all — both direct violations of
-		`docs/game/art-and-audio.md`'s two universal constants ("everything
-		is cells", "hue encodes curvature"). Amber/ember/brass, per that
-		doc's κ>0 family — the same sign of curvature as the Fold, since
-		nothing here is glued and the Weft is walking the same sphere.
+		`biomes.weft.WeftMesh`'s own locked gate walls (2026-08-18) — the one
+		wall of each `WeftModel` gate the player cannot open directly. Reuses
+		`CONWAY_TILE_DYING`'s own red rather than a new hue, the same "needs
+		attention" reading that color already carries in the Fold. Flat, not
+		argued from curvature/hue-discipline the way the rest of this file
+		is — asked directly to make gates "too obvious" as a first pass, to
+		be revisited toward something subtler once the mechanic itself is
+		proven out.
 	**/
-	public static inline final WEFT_FLOOR:Int = 0xFF2A1D12;
+	public static inline final WEFT_GATE_LOCK:Int = CONWAY_TILE_DYING;
 
 	/**
-		`biomes.weft.WeftMesh`'s own walls — same warm family as
-		`WEFT_FLOOR`, deliberately brighter rather than a different hue: the
-		wall is the thing the player actually acts on (`WeftModel.toggle`),
-		the floor is not, and "no other system may use hue as its primary
-		channel" (art-and-audio.md) rules out marking that distinction with
-		a second hue the way `CONWAY_WALL_GLOW`'s cyan marks Conway's walls
-		against its own blue-black floor. Value carries it here instead.
+		`biomes.weft.WeftMesh`'s own gate keys (2026-08-18) — the antipodal
+		wall that actually answers to a `WEFT_GATE_LOCK`, when it happens to
+		be closed (it starts open — see `WeftModel.sealKeystoneGates`). Reuses
+		`CONWAY_TILE_LIVE`'s own green; same "too obvious, on purpose, for
+		now" caveat as `WEFT_GATE_LOCK`.
 	**/
-	public static inline final WEFT_WALL:Int = 0xFF9C6A38;
+	public static inline final WEFT_GATE_KEY:Int = CONWAY_TILE_LIVE;
 }

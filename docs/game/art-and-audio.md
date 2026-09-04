@@ -20,6 +20,34 @@ that is merely pretty is art that is lying.
 
 That inversion is the whole brief. It should be on the wall.
 
+> ## ⚠ Status (2026-09-04): the hue rule below is a **proposal, not the
+> working direction.**
+>
+> Asked directly where the art should go, the answer was that the
+> curvature gradient is *"one of your suggestions I haven't actually
+> validated yet"* — and that the register being tried instead is
+> **futuristic, monotone, cyberpunk: "empty, deserted, without identity so
+> that the very few things we want to pop out do pop out more."**
+>
+> That is what `graphics.Colours` now implements, and it is a different
+> kind of system: a **contrast budget** rather than a colour code. The base
+> ramp (`VOID` → `SURFACE_EDGE`) is one desaturated blue-grey walked by
+> *value only* and is never allowed to be saturated; four signal colours
+> (`SIGNAL_LIVE`/`ACT`/`DENY`/`MARK`) are the only saturated things on
+> screen. Emptiness is load-bearing rather than a gap to fill.
+>
+> **Neither direction is committed to.** They are not compatible — one
+> spends hue on curvature, the other spends it on salience and has none
+> left over — so this will have to be decided rather than blended. The
+> curvature argument below is kept in full because it is still the better
+> *teaching* system if the game can afford it; the monotone direction is
+> winning on the strength of what the Fold already looks like in the
+> engine, which is the only evidence either has.
+>
+> Everything below this box other than the hue rule itself — the material
+> language, defects-are-ornamented, no directional sunlight, the landmark
+> alphabet, the audio direction — is unaffected and still holds.
+
 ## The master stroke: hue encodes curvature
 
 **Colour temperature maps to κ**, consistently, everywhere, forever.
@@ -115,7 +143,7 @@ so far:
 | Space | Dialect |
 |---|---|
 | **The Repeat** | a **cell city** — Manifold Garden's own register: blocky, low-poly, almost no texture, silhouette carrying everything. Buildings, not terrain. This isn't just a palette choice — it *reinforces* [world.md](world.md)'s own mechanism for this space. An urban dialect gives divergence somewhere obvious to hide (a window lit differently, a storey the reference block doesn't have, a rooftop shape one degree off) in a way organic terrain doesn't offer for free; spot-the-difference wants hard edges and repeated units, and a city is made of exactly those. |
-| **The Weft** | flat amber/ember/brass — plain κ>0 warmth, no dialect beyond it. Replaces the grass and stone it inherited from the maze prototype it reuses ([world.md](world.md)), which was organic and hue-arbitrary against both universal constants above; flagged directly ("no coherence with our new Artistic Direction"). Walls read brighter than the floor — value, not a second hue, per the discipline above — because the wall is the element `WeftModel.toggle` lets the player act on and the floor is not. No dialect beyond that: this space's own distinguishing device is the echo (`WeftBiome.ECHO_COLOR`, the brightest thing in the biome) and the north/south symmetry `WeftModel.enforceOpposite` now generates directly, not a silhouette language layered on top. |
+| **The Weft** | **the Fold's own dialect, reused outright (2026-08-17, asked directly: "make the walls and ground look the very same").** Originally shipped with its own flat amber/ember/brass dialect — plain κ>0 warmth, replacing the grass and stone it inherited from the maze prototype it reuses ([world.md](world.md)), which was organic and hue-arbitrary against both universal constants above (flagged directly, "no coherence with our new Artistic Direction"). That dialect is gone: the floor is now `Colours.CONWAY_TILE_DEAD`, and the walls now render with `graphics.shaders.ConwayWallGlow` itself (`CONWAY_WALL_PANEL`/`CONWAY_WALL_GLOW`) via `GridMesh.buildWallPrim`'s own `glowUv` mode, which emits that shader's UV/normal convention on the grid's wall geometry instead of the texture-tile one `GridMesh.build`'s other callers use. Every wall sits at a constant zero activity — the shader's own rest brightness — since the Weft has no Conway-style "about to flip" reading to animate the pulse with, only an instant player-triggered toggle. This is now a **deliberate exception** to "each space gets its own dialect": the Weft's own distinguishing devices are the mechanic (the echo, `WeftBiome.ECHO_COLOR`) and the geometry (the north/south symmetry `WeftModel.enforceOpposite` generates), not a silhouette language, so sharing the Fold's surface material costs it nothing legibility-wise — the two spaces are told apart by the echo and the pairing rule, not by hue or wall texture. **Deliberate accents on top, generalized and recolored the same day (2026-08-18):** each gate's lock and partner walls (`WeftMesh.addGateWall`) render flat in `Colours.WEFT_GATE_LOCK` (red) and `WEFT_GATE_KEY` (green) — a stock stop/go pairing standing apart from the uniform Fold-cyan everywhere else, with matching beacons (`WeftBiome.buildKeystoneMarkers`) marking both ends even while a wall isn't currently there to color. Asked directly to make gates "too obvious" as a first pass, so this is deliberately *not* argued from the curvature-hue discipline the rest of this file holds to — it supersedes an earlier version that marked both ends the same amber as `Colours.CONWAY_TILE_GLIDER` (the Fold's "followable, notable thing" convention), dropped once red/green needed to distinguish "locked" from "the actionable one" instead of just "notable." Revisit toward something subtler once the mechanic itself is proven out. |
 
 The rest are open — this table is meant to fill in space by space as each
 one's own mechanism gets worked out, the same way the world doc itself
