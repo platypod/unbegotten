@@ -126,6 +126,12 @@ class RepeatModel {
 		return roll < 0.45 ? 1 : (roll < 0.85 ? 2 : 3);
 	}
 
+	/** Least a deformed building leans. See `anomalyLean`. **/
+	public static inline final ANOMALY_MIN_LEAN:Float = 0.035;
+
+	/** Most a deformed building leans — about five degrees, which is visibly wrong beside a true one and unremarkable alone. **/
+	public static inline final ANOMALY_MAX_LEAN:Float = 0.09;
+
 	/** How much each tier narrows relative to the one below it. **/
 	public static inline final TIER_INSET:Float = 0.74;
 
@@ -181,11 +187,25 @@ class RepeatModel {
 		Which plot of a tile diverges from the reference, or null if this
 		tile is one of the untouched ones.
 
-		**The divergence always removes a building**, never adds one, and
-		that is the design rather than a simplification: "recognising the
-		difference and reaching the new ground are the same act". A missing
-		block is somewhere you can walk that you could not walk in the last
-		tile; an extra block would be a difference you can only look at.
+		**The divergence leaves the building standing but wrong** — tilted
+		off true, its top storey turned a few degrees out of line. It used
+		to remove the building outright, and the change was asked for
+		directly: a whole missing block from a repeated skyline is
+		unmissable ("way too noticeable"), so the space was solved by
+		glancing rather than by comparing, which is the one thing it exists
+		to make you do.
+
+		**This does cost something and the trade is deliberate.** The
+		original rule was argued in `world.md` as "recognising the
+		difference and reaching the new ground are the same act" — a gap is
+		somewhere you can *walk* that you could not walk in the last tile,
+		so noticing and reaching were one motion with no puzzle bolted on
+		top. A wrong building is a difference you can only look at, so those
+		two come apart and reaching it is now a separate (if small) act of
+		walking over. Worth it: a difference subtle enough to require the
+		comparison is the point of the space, and a mechanic that is never
+		exercised because the answer is obvious from fifty metres away is
+		worth less than a slightly less elegant one that is.
 		@param i the tile's own x coordinate.
 		@param j the tile's own z coordinate.
 		@return the diverging plot, or null.
@@ -213,11 +233,43 @@ class RepeatModel {
 		@return true if there is a building standing there.
 	**/
 	public static function hasBuilding(i:Int, j:Int, plotX:Int, plotZ:Int):Bool {
-		if (!referenceHasBuilding(plotX, plotZ)) {
-			return false;
-		}
+		// Every tile now builds the full reference layout: the divergence
+		// deforms a building rather than deleting it, so nothing is missing
+		// and collision is the same everywhere. See `divergenceOf`.
+		return referenceHasBuilding(plotX, plotZ);
+	}
+
+	/**
+		Whether this plot carries this tile's own deformed building.
+		@param i the tile's own x coordinate.
+		@param j the tile's own z coordinate.
+		@param plotX plot column within the tile.
+		@param plotZ plot row within the tile.
+		@return true if the building standing here is the wrong one.
+	**/
+	public static function isAnomalous(i:Int, j:Int, plotX:Int, plotZ:Int):Bool {
 		var divergence = divergenceOf(i, j);
-		return divergence == null || divergence.plotX != plotX || divergence.plotZ != plotZ;
+		return divergence != null && divergence.plotX == plotX && divergence.plotZ == plotZ;
+	}
+
+	/**
+		How far out of true a tile's anomalous building leans, in radians.
+
+		Small on purpose, and the hardest number here to get right: large
+		enough that a player *comparing* two tiles sees it, small enough
+		that a player merely walking past does not. Deterministic per tile
+		so the same tile is always wrong in the same way.
+		@param i the tile's own x coordinate.
+		@param j the tile's own z coordinate.
+		@return the lean angle, in radians.
+	**/
+	public static function anomalyLean(i:Int, j:Int):Float {
+		return ANOMALY_MIN_LEAN + noise(i, j, 6) * (ANOMALY_MAX_LEAN - ANOMALY_MIN_LEAN);
+	}
+
+	/** Which way the lean points, in radians around the vertical. **/
+	public static function anomalyBearing(i:Int, j:Int):Float {
+		return noise(i, j, 7) * Math.PI * 2;
 	}
 
 	/** The world position of a plot's own centre, in the given tile. **/

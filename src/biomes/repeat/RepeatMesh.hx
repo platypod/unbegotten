@@ -62,10 +62,36 @@ class RepeatMesh {
 	static inline final STREET_GLOW:Int = 0x4A5A6B;
 
 	/** Where distance fading begins and ends, in world units. Tuned to the built radius so the far edge of the region dissolves rather than ending in a visible wall of geometry. **/
-	static inline final FOG_START:Float = 120;
+	static inline final FOG_START:Float = 55;
 
 	/** See `FOG_START`. **/
-	static inline final FOG_END:Float = 620;
+	static inline final FOG_END:Float = 340;
+
+	/**
+		The progress constellation: one star per mark plot already found,
+		hung in the sky in the mark's *own* arrangement.
+
+		Diegetic, and deliberately the same shape as the payload rather than
+		a separate motif. The player watches a constellation assemble
+		overhead, one star at a time, in the layout the ground-level reveal
+		will eventually take — so progress and the thing being progressed
+		toward are one object, and the sky is quietly telling you what you
+		are building long before it finishes. A counter would say "3 of 7";
+		this says "three of *these*, and here is where the others go".
+
+		Stars only appear where a plot has actually been found, so the gaps
+		are information too: they are the pieces still out there.
+	**/
+	static inline final STAR_COLOR:Int = 0xC8D4E2;
+
+	/** How high the constellation hangs. Well above the tallest tower, so nothing occludes it and it reads as sky rather than as architecture. **/
+	static inline final STAR_HEIGHT:Float = 210;
+
+	/** World units between neighbouring stars — the mark's own plot spacing, scaled up so the shape is legible from the ground. **/
+	static inline final STAR_SPACING:Float = 26;
+
+	/** Half-extent of one star. **/
+	static inline final STAR_HALF_WIDTH:Float = 3.2;
 
 	/** Half-width of a street light strip. **/
 	static inline final STRIP_HALF_WIDTH:Float = 0.7;
@@ -73,38 +99,55 @@ class RepeatMesh {
 	/** How high a street strip stands off the ground — just enough not to z-fight with it. **/
 	static inline final STRIP_HEIGHT:Float = 0.35;
 
-	/** The marker standing in a diverged plot — the brightest thing in the biome, and the only one. **/
-	static inline final FRAGMENT_COLOR:Int = 0xEFEAE0;
-
-	static inline final FRAGMENT_HEIGHT:Float = 16;
-	static inline final FRAGMENT_HALF_WIDTH:Float = 2.2;
-
 	/**
 		Builds every tile within `radius` tiles of the one the player is
 		standing in.
 		@param parent the scene object to build under.
 		@param centre the tile at the centre of the built region.
 		@param radius how many tiles out to build, each way.
-		@param collected which tiles have had their fragment taken, keyed by `RepeatBiome.tileKey`.
+		@param collected which tiles have had their anomaly put right, keyed by `RepeatBiome.tileKey`.
+		@param found which of the mark's own plots have been found, keyed `"plotX,plotZ"` — drives the progress constellation.
 	**/
-	public static function build(parent:h3d.scene.Object, centre:{i:Int, j:Int}, radius:Int, collected:Map<String, Bool>):Void {
+	public static function build(parent:h3d.scene.Object, centre:{i:Int, j:Int}, radius:Int, collected:Map<String, Bool>, found:Map<String, Bool>):Void {
 		addGround(parent, centre, radius);
 
 		var buildings = new BoxBatch(parent, FACE_EAST_WEST,
 			() -> new CityFacade(FACE_EAST_WEST, FACE_NORTH_SOUTH, FACE_TOP, WINDOW_DARK, WINDOW_LIT, WINDOW_NEON, SKY_COLOR, FOG_START, FOG_END,
 				RepeatModel.TILE_SIZE));
 		var strips = new BoxBatch(parent, STREET_GLOW);
-		var fragments = new BoxBatch(parent, FRAGMENT_COLOR);
 
 		for (di in -radius...radius + 1) {
 			for (dj in -radius...radius + 1) {
-				addTile(buildings, strips, fragments, centre.i + di, centre.j + dj, collected);
+				addTile(parent, buildings, strips, centre.i + di, centre.j + dj, collected);
 			}
 		}
 
 		buildings.flush();
 		strips.flush();
-		fragments.flush();
+		addConstellation(parent, centre, found);
+	}
+
+	/**
+		The found-so-far stars, centred over the region being built so they
+		stay overhead as the player walks. See `STAR_COLOR`.
+		@param found which mark plots have been found, keyed `"plotX,plotZ"`.
+	**/
+	static function addConstellation(parent:h3d.scene.Object, centre:{i:Int, j:Int}, found:Map<String, Bool>):Void {
+		var stars = new BoxBatch(parent, STAR_COLOR);
+		var origin = RepeatModel.tileOrigin(centre.i, centre.j);
+		var middle = RepeatModel.TILE_SIZE / 2;
+		for (plot in RepeatModel.MARK_PLOTS) {
+			if (!found.exists('${plot.plotX},${plot.plotZ}')) {
+				continue;
+			}
+			// Centred on the mark's own bounding box rather than on plot
+			// (0,0), so the constellation sits overhead rather than off to
+			// one side of wherever the player happens to be.
+			var x = origin.x + middle + (plot.plotX - 1.5) * STAR_SPACING;
+			var z = origin.z + middle + (plot.plotZ - 3.5) * STAR_SPACING;
+			stars.add(x, z, STAR_HALF_WIDTH, STAR_HALF_WIDTH, STAR_HEIGHT, STAR_HALF_WIDTH * 2);
+		}
+		stars.flush();
 	}
 
 	/** One flat quad under the whole built region — the streets, and everything a building is not standing on. **/
@@ -123,8 +166,8 @@ class RepeatMesh {
 		mesh.material.mainPass.culling = None;
 	}
 
-	/** One tile's buildings and street strips, plus its fragment marker if it diverges and has not been collected. **/
-	static function addTile(buildings:BoxBatch, strips:BoxBatch, fragments:BoxBatch, i:Int, j:Int, collected:Map<String, Bool>):Void {
+	/** One tile's buildings and street strips — including its deformed one, if it has one and it has not been put right. **/
+	static function addTile(parent:h3d.scene.Object, buildings:BoxBatch, strips:BoxBatch, i:Int, j:Int, collected:Map<String, Bool>):Void {
 		var half = RepeatModel.buildingHalfExtent();
 
 		for (plotX in 0...RepeatModel.PLOTS_PER_TILE) {
@@ -133,17 +176,44 @@ class RepeatMesh {
 					continue;
 				}
 				var centre = RepeatModel.plotCentre(i, j, plotX, plotZ);
-				addBuilding(buildings, centre.x, centre.z, half, RepeatModel.buildingHeight(plotX, plotZ), RepeatModel.tierCount(plotX, plotZ));
+				var height = RepeatModel.buildingHeight(plotX, plotZ);
+				var tiers = RepeatModel.tierCount(plotX, plotZ);
+				if (RepeatModel.isAnomalous(i, j, plotX, plotZ) && !collected.exists(RepeatBiome.tileKey(i, j))) {
+					addDeformedBuilding(parent, centre.x, centre.z, half, height, tiers, RepeatModel.anomalyLean(i, j), RepeatModel.anomalyBearing(i, j));
+					continue;
+				}
+				addBuilding(buildings, centre.x, centre.z, half, height, tiers);
 			}
 		}
 		addStreetStrips(strips, i, j);
+	}
 
-		var divergence = RepeatModel.divergenceOf(i, j);
-		if (divergence == null || collected.exists(RepeatBiome.tileKey(i, j))) {
-			return;
-		}
-		var at = RepeatModel.plotCentre(i, j, divergence.plotX, divergence.plotZ);
-		fragments.add(at.x, at.z, FRAGMENT_HALF_WIDTH, FRAGMENT_HALF_WIDTH, 0, FRAGMENT_HEIGHT);
+	/**
+		The anomalous building: the same building, leaning.
+
+		Its own object with a rotation on it rather than a box in the shared
+		batch, because `game.BoxBatch` emits axis-aligned geometry by design
+		— "a building or a cell is a discrete thing sitting on the terrain,
+		not a shear of it" — and this is the one building in the world that
+		is deliberately not upright.
+
+		The lean is applied about the base, not the centre, so the building
+		still meets the ground where it should and only its top is out of
+		line. That is what makes it a *comparison* rather than an alarm: the
+		footprint is right, the silhouette is not, and you cannot tell
+		without something to hold it against.
+	**/
+	static function addDeformedBuilding(parent:h3d.scene.Object, x:Float, z:Float, half:Float, height:Float, tiers:Int, lean:Float, bearing:Float):Void {
+		var pivot = new h3d.scene.Object(parent);
+		pivot.x = x;
+		pivot.z = z;
+		pivot.rotate(Math.cos(bearing) * lean, 0, Math.sin(bearing) * lean);
+
+		var batch = new BoxBatch(pivot, FACE_EAST_WEST,
+			() -> new CityFacade(FACE_EAST_WEST, FACE_NORTH_SOUTH, FACE_TOP, WINDOW_DARK, WINDOW_LIT, WINDOW_NEON, SKY_COLOR, FOG_START, FOG_END,
+				RepeatModel.TILE_SIZE));
+		addBuilding(batch, 0, 0, half, height, tiers);
+		batch.flush();
 	}
 
 	/**
@@ -165,21 +235,23 @@ class RepeatMesh {
 	}
 
 	/**
-		Light strips down the middle of a tile's streets — the one other
-		emissive thing at ground level, and what stops the ground plane and
-		the building bases merging into a single dark mass.
+		Light strips along a tile's own edges — the one other emissive thing
+		at ground level, and what stops the ground plane and the building
+		bases merging into a single dark mass.
 
-		Drawn on the plot grid rather than only where there is no building,
-		so the grid reads as continuous the way a lit road does; a strip
-		under a building is simply hidden by it.
+		**On tile boundaries, not on every plot**, which is both a visual
+		and a mechanical decision. A strip per plot was a grid fine enough to
+		read as graph paper ("too granular"), and it also said nothing: it
+		marked a division the player has no use for. A strip per *tile* draws
+		the period itself, so the ground answers the question this space's
+		own verb asks — "walk exactly one measured period" — without a UI or
+		a counter. You can see where one repeat ends and the next begins,
+		which is the comparison the whole biome is about.
 	**/
 	static function addStreetStrips(strips:BoxBatch, i:Int, j:Int):Void {
 		var origin = RepeatModel.tileOrigin(i, j);
 		var span = RepeatModel.TILE_SIZE;
-		for (line in 0...RepeatModel.PLOTS_PER_TILE) {
-			var offset = line * RepeatModel.PLOT_SIZE;
-			strips.add(origin.x + offset, origin.z + span / 2, STRIP_HALF_WIDTH, span / 2, STRIP_HEIGHT, STRIP_HEIGHT);
-			strips.add(origin.x + span / 2, origin.z + offset, span / 2, STRIP_HALF_WIDTH, STRIP_HEIGHT, STRIP_HEIGHT);
-		}
+		strips.add(origin.x, origin.z + span / 2, STRIP_HALF_WIDTH, span / 2, STRIP_HEIGHT, STRIP_HEIGHT);
+		strips.add(origin.x + span / 2, origin.z, span / 2, STRIP_HALF_WIDTH, STRIP_HEIGHT, STRIP_HEIGHT);
 	}
 }

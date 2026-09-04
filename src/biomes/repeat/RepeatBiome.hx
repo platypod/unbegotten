@@ -58,8 +58,17 @@ class RepeatBiome implements Biome {
 	**/
 	static inline final BUILD_RADIUS:Int = 2;
 
-	/** How close the player must get to a fragment to take it — generous, since it stands in an open plot and hunting for a precise spot is not the puzzle. **/
-	static inline final FRAGMENT_REACH:Float = 8.0;
+	/**
+		How close the player must get to the anomalous building to put it
+		right.
+
+		Wider than it was when the anomaly was a *gap* and the player could
+		stand in the middle of the empty plot. The building is now standing,
+		so the closest anyone can get to its centre is its own half-extent
+		plus their own body — this has to clear both, or the anomaly could
+		never be reached at all.
+	**/
+	static inline final ANOMALY_REACH:Float = 20.0;
 
 	/** The assembled mark's own pillars, as a fraction of a building's footprint — slimmer than the city, so it reads as placed rather than as more architecture. **/
 	static inline final MARK_FOOTPRINT:Float = 0.45;
@@ -208,7 +217,7 @@ class RepeatBiome implements Biome {
 		var at = RepeatModel.plotCentre(tile.i, tile.j, divergence.plotX, divergence.plotZ);
 		var dx = player.pos.x - at.x;
 		var dz = player.pos.z - at.z;
-		if (Math.sqrt(dx * dx + dz * dz) > FRAGMENT_REACH) {
+		if (Math.sqrt(dx * dx + dz * dz) > ANOMALY_REACH) {
 			return;
 		}
 
@@ -263,7 +272,7 @@ class RepeatBiome implements Biome {
 			return; // not built yet — nothing to draw into
 		}
 		container.removeChildren();
-		RepeatMesh.build(container, around, BUILD_RADIUS, collected);
+		RepeatMesh.build(container, around, BUILD_RADIUS, collected, markPlotsFound);
 		builtAround = around;
 	}
 

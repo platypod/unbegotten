@@ -21,20 +21,20 @@ class RepeatModelTest extends Test {
 		**Every tile carries the same reference layout.** The generator
 		takes only the plot's position within a tile — never the tile's own
 		coordinates — so sameness is structural rather than something that
-		has to be maintained. This checks it across a wide spread of tiles,
-		ignoring divergences.
+		has to be maintained.
+
+		**Stronger now than when the divergence removed a building**: every
+		tile carries the *whole* reference layout with no exceptions, because
+		the anomaly deforms a building rather than deleting one. Layout
+		identity is now total, and the difference lives entirely in shape.
 	**/
 	function testEveryTileSharesTheSameReferenceLayout():Void {
 		for (i in -6...7) {
 			for (j in -6...7) {
 				for (plotX in 0...RepeatModel.PLOTS_PER_TILE) {
 					for (plotZ in 0...RepeatModel.PLOTS_PER_TILE) {
-						var here = RepeatModel.hasBuilding(i, j, plotX, plotZ);
-						var reference = RepeatModel.referenceHasBuilding(plotX, plotZ);
-						var divergence = RepeatModel.divergenceOf(i, j);
-						var isDiverged = divergence != null && divergence.plotX == plotX && divergence.plotZ == plotZ;
-
-						Assert.equals(reference && !isDiverged, here, 'tile ($i, $j) plot ($plotX, $plotZ) does not follow the reference');
+						Assert.equals(RepeatModel.referenceHasBuilding(plotX, plotZ), RepeatModel.hasBuilding(i, j, plotX, plotZ),
+							'tile ($i, $j) plot ($plotX, $plotZ) does not follow the reference');
 					}
 				}
 			}
@@ -42,12 +42,12 @@ class RepeatModelTest extends Test {
 	}
 
 	/**
-		**A divergence only ever removes a building.** The design requires
+		**A divergence only ever deforms a standing building.** The design requires
 		that recognising a difference and reaching new ground be the same
 		act, which an added building would break — you would see it and
 		have nowhere new to go.
 	**/
-	function testADivergenceAlwaysOpensGround():Void {
+	function testADivergenceAlwaysHasABuildingToDeform():Void {
 		var found = 0;
 		for (i in -8...9) {
 			for (j in -8...9) {
@@ -58,7 +58,13 @@ class RepeatModelTest extends Test {
 				found++;
 				Assert.isTrue(RepeatModel.referenceHasBuilding(divergence.plotX, divergence.plotZ),
 					'tile ($i, $j) diverges on a plot the reference leaves empty, so it opens nothing');
-				Assert.isFalse(RepeatModel.hasBuilding(i, j, divergence.plotX, divergence.plotZ), 'tile ($i, $j) still has its diverged building standing');
+				Assert.isTrue(RepeatModel.hasBuilding(i, j, divergence.plotX, divergence.plotZ),
+					'tile ($i, $j) has no building standing on its anomalous plot, so there is nothing to deform');
+				Assert.isTrue(RepeatModel.isAnomalous(i, j, divergence.plotX, divergence.plotZ), 'tile ($i, $j) does not report its own anomaly');
+
+				var lean = RepeatModel.anomalyLean(i, j);
+				Assert.isTrue(lean >= RepeatModel.ANOMALY_MIN_LEAN && lean <= RepeatModel.ANOMALY_MAX_LEAN,
+					'tile ($i, $j) leans $lean, outside the range that is visible by comparison but not by glance');
 			}
 		}
 		Assert.isTrue(found > 0, "no tile in a 17x17 block diverged at all");
@@ -71,7 +77,7 @@ class RepeatModelTest extends Test {
 				var differences = 0;
 				for (plotX in 0...RepeatModel.PLOTS_PER_TILE) {
 					for (plotZ in 0...RepeatModel.PLOTS_PER_TILE) {
-						if (RepeatModel.hasBuilding(i, j, plotX, plotZ) != RepeatModel.referenceHasBuilding(plotX, plotZ)) {
+						if (RepeatModel.isAnomalous(i, j, plotX, plotZ)) {
 							differences++;
 						}
 					}

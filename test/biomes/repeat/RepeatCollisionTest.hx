@@ -40,7 +40,7 @@ class RepeatCollisionTest extends Test {
 		difference the player spots must be ground they can then stand on,
 		or noticing and reaching stop being the same act.
 	**/
-	function testADivergedPlotIsWalkable():Void {
+	function testTheAnomalousPlotIsSolidButReachable():Void {
 		var found = 0;
 		for (i in -8...9) {
 			for (j in -8...9) {
@@ -50,11 +50,15 @@ class RepeatCollisionTest extends Test {
 				}
 				found++;
 				var centre = RepeatModel.plotCentre(i, j, divergence.plotX, divergence.plotZ);
-				Assert.isTrue(RepeatCollision.isOpen(centre.x, centre.z), 'the divergence in tile ($i, $j) is not standable');
+				// The anomaly is a *deformed* building now, not a gap, so its
+				// own plot is solid like any other — the design trade is
+				// recorded on RepeatModel.divergenceOf.
+				Assert.isFalse(RepeatCollision.isOpen(centre.x, centre.z), 'the anomaly in tile ($i, $j) is not standing');
 
-				// and the same plot of an untouched tile is not
-				Assert.isTrue(RepeatModel.referenceHasBuilding(divergence.plotX, divergence.plotZ),
-					'the divergence in tile ($i, $j) opens a plot that was open anyway');
+				// But it must still be walkable *up to*, or it could never be
+				// put right — this is what RepeatBiome.ANOMALY_REACH clears.
+				var beside = RepeatModel.PLOT_SIZE / 2 - 1;
+				Assert.isTrue(RepeatCollision.isOpen(centre.x + beside, centre.z), 'the anomaly in tile ($i, $j) cannot be walked up to');
 			}
 		}
 		Assert.isTrue(found > 0, "no divergence found to check");
