@@ -320,4 +320,49 @@ class PlayerModelTest extends Test {
 		player.updateThrottle(10, false);
 		Assert.floatEquals(0, player.throttle, 1e-9);
 	}
+
+	function testADashRunsForItsDurationThenStops():Void {
+		var player = freshPlayer();
+
+		Assert.isTrue(player.startDash());
+		Assert.isTrue(player.isDashing());
+
+		player.updateDash(PlayerModel.DASH_DURATION);
+
+		Assert.isFalse(player.isDashing());
+	}
+
+	function testASecondDashIsRefusedUntilTheCooldownExpires():Void {
+		var player = freshPlayer();
+		player.startDash();
+		player.updateDash(PlayerModel.DASH_DURATION);
+
+		Assert.isFalse(player.startDash(), "still cooling down");
+
+		player.updateDash(PlayerModel.DASH_COOLDOWN);
+
+		Assert.isTrue(player.startDash(), "cooldown expired");
+	}
+
+	function testDashingAgainMidDashDoesNotExtendIt():Void {
+		var player = freshPlayer();
+		player.startDash();
+		player.updateDash(PlayerModel.DASH_DURATION * 0.5);
+
+		Assert.isFalse(player.startDash());
+
+		player.updateDash(PlayerModel.DASH_DURATION * 0.5);
+
+		Assert.isFalse(player.isDashing());
+	}
+
+	function testDashIsAvailableInMidAir():Void {
+		// A glider is a travelling pattern; the traversal this verb exists
+		// to give is crossing a gap, not sprinting across a floor.
+		var player = freshPlayer();
+		player.requestJump(18);
+
+		Assert.isFalse(player.grounded);
+		Assert.isTrue(player.startDash());
+	}
 }

@@ -34,6 +34,15 @@ class Keybinds {
 	public static inline final JUMP:Int = hxd.Key.SPACE;
 
 	/**
+		The glider dash — commit a direction and travel it (see
+		`entities.player.PlayerModel.startDash`). Bound by physical position
+		like the strafe keys, so it sits under the same hand on AZERTY and
+		QWERTY alike; `LeftShift` is already `SPRINT`, so this takes the key
+		beside it.
+	**/
+	public static inline final DASH:String = "KeyC";
+
+	/**
 		"Act here" — whatever the current biome does with it, if anything
 		(see `biomes.common.Biome.interact`). `E`, not `F` (2026-08-10) —
 		freed from the debug export-maze tool (`EXPORT_MAZE`, removed the

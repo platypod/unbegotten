@@ -390,6 +390,25 @@ class GameLoop {
 		@param scaledDt this frame's own `dt`, already multiplied by `biomeRegistry.globalTimeScale()`.
 	**/
 	function handleMovement(scaledDt:Float):Void {
+		if (PhysicalKeys.isPressed(Keybinds.DASH)) {
+			player.startDash();
+		}
+		player.updateDash(scaledDt);
+
+		// A dash is a commitment: no steering, no strafing, no throttling
+		// out of it. Travelling along `forward` is what makes it a geodesic
+		// on every one of these surfaces for free — `Space.moveAlong`
+		// parallel-transports `forward` with the move, so "keep going the
+		// way I was pointed" needs no direction vector of its own that
+		// could drift out of the tangent plane.
+		if (player.isDashing()) {
+			tryMove(player.forward, PlayerModel.DASH_SPEED * scaledDt);
+			currentBiome.applyGravity(player, scaledDt);
+			player.updateJump(scaledDt);
+			checkPaintingTrigger();
+			return;
+		}
+
 		if (hxd.Key.isDown(Keybinds.TURN_LEFT)) {
 			player.turn(-TURN_SPEED * scaledDt);
 		}

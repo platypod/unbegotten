@@ -77,6 +77,26 @@ class PlayerModel extends Entity {
 	/** Seconds from full walk speed back to standing still. See `COYOTE_TIME`. **/
 	public static inline final DECELERATION_TIME:Float = 0.10;
 
+	/**
+		The glider dash. `BECOME` was cut because *wearing* the automaton's
+		bodies was the wrong verb (see `docs/building/roadmap.md`'s Risk 8
+		outcome) — but the glider's own movement *rule* survives that
+		verdict: fixed speed, direction fixed at launch, no steering until
+		it ends. As one ability rather than a body to inhabit it costs
+		nothing thematically and stays the world's own vocabulary.
+
+		Speed and duration rather than a distance, because a distance would
+		have to be an arc length and every biome here has a different
+		radius. **Untuned starting values**, same caveat as `COYOTE_TIME`.
+	**/
+	public static inline final DASH_SPEED:Float = 46;
+
+	/** How long a dash lasts. See `DASH_SPEED`. **/
+	public static inline final DASH_DURATION:Float = 0.22;
+
+	/** Seconds after a dash ends before another can start. See `DASH_SPEED`. **/
+	public static inline final DASH_COOLDOWN:Float = 0.7;
+
 	/** Position on the sphere's interior surface. **/
 	public var pos:h3d.Vector;
 
@@ -150,6 +170,12 @@ class PlayerModel extends Entity {
 
 	/** Impulse the buffered jump should fire at, captured at press time. **/
 	var bufferedImpulse:Float = 0;
+
+	/** Seconds left in the current dash; `0` when not dashing. **/
+	var dashRemaining:Float = 0;
+
+	/** Seconds left before another dash may start. **/
+	var dashCooldownRemaining:Float = 0;
 
 	/**
 		Whether releasing the jump key can still cut this jump short. True
@@ -391,6 +417,54 @@ class PlayerModel extends Entity {
 	public function updateThrottle(dt:Float, moving:Bool):Void {
 		var rate = moving ? 1 / ACCELERATION_TIME : -1 / DECELERATION_TIME;
 		throttle = hxd.Math.clamp(throttle + rate * dt, 0, 1);
+	}
+
+	/**
+		Whether a dash is currently running — while true the player travels
+		along `forward` at `DASH_SPEED` and cannot turn or steer, which is
+		the commitment the whole verb is about.
+	**/
+	public function isDashing():Bool {
+		return dashRemaining > 0;
+	}
+
+	/**
+		Starts a dash if one is not already running and the cooldown has
+		expired. Deliberately available in mid-air as well as on the ground:
+		a glider is a *travelling* pattern, and the traversal this exists to
+		give the player is crossing a gap, not sprinting across a floor.
+		@return true if a dash actually started.
+	**/
+	public function startDash():Bool {
+		if (dashRemaining > 0 || dashCooldownRemaining > 0) {
+			return false;
+		}
+		dashRemaining = DASH_DURATION;
+		return true;
+	}
+
+	/**
+		Advances the dash and its cooldown by one fixed step. The dash's own
+		*motion* is not applied here — that has to go through the biome's
+		own collision (`biomes.common.Biome.tryMove`), so `GameLoop` drives
+		it, the same way it drives ordinary walking.
+		@param dt fixed timestep duration, in seconds.
+	**/
+	public function updateDash(dt:Float):Void {
+		if (dashRemaining > 0) {
+			dashRemaining -= dt;
+			if (dashRemaining <= 0) {
+				dashRemaining = 0;
+				dashCooldownRemaining = DASH_COOLDOWN;
+			}
+			return;
+		}
+		if (dashCooldownRemaining > 0) {
+			dashCooldownRemaining -= dt;
+			if (dashCooldownRemaining < 0) {
+				dashCooldownRemaining = 0;
+			}
+		}
 	}
 
 	function launch(impulse:Float):Void {
