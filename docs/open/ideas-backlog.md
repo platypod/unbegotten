@@ -985,6 +985,66 @@ smaller scale, each exit zooms you back up.
 
 ---
 
+### Every building is a game of life *(not built — the windows are a static hash)*
+
+Raised on seeing the city on local: *"I love the idea that each building
+represents a game of life."* **It is not one.** `graphics.shaders.CityFacade`
+lights each pane from `hash(cell)` — a fixed random grid, decided once and
+frozen. Nothing evolves, nothing has ever evolved, and the resemblance is
+entirely in the eye. Recorded here rather than quietly written into
+`world.md` as though it were true, because the gap between the two is the
+whole of the work below.
+
+**It should be one, and the case is strong.** The material language already
+says everything here is cells and that alive is emissive; a lit window
+already *looks* like a live cell. Making the facades actually run the rule
+would mean the city is not decorated with a metaphor, it is the thing
+itself — and Thread 2's "the terrain is made of the ones who stopped" stops
+being a line and becomes something the player watches happen: towers
+settling into still lifes as their facades run down.
+
+**Why it is cheap, which is the non-obvious part.** The naive objection is
+that simulating Life on every building in an unbounded city is impossible.
+But this space's own tile identity means **there are only ever 36 distinct
+facades** — `PLOTS_PER_TILE²` — because every tile is the same tile. Thirty-
+six small grids is nothing to step on the CPU. Every visible building
+showing the same generation of the same 36 simulations is not a compromise
+either; it is exactly what the space claims: same seed, same rule, same
+future, so identical unless something intervened.
+
+Sketch, in rough order:
+
+1. Simulate 36 small Life grids (one per plot), seeded from the plot's own
+   position — never the tile's, or tile identity dies and the comparison
+   mechanic with it.
+2. Step them on the biome's own clock, slowly — this is a skyline settling
+   over minutes, not a screensaver.
+3. Upload the state as a small texture and index it from `CityFacade`
+   instead of `hash(cell)`.
+4. The anomalous building runs a *diverged* generation — which would give
+   the anomaly back the "you can only tell by comparing" quality that the
+   lean currently carries alone, and would make the divergence mean
+   something in the fiction rather than being a dent.
+
+**How to make it legible**, since the current version was not read as Life
+even by someone who knew to look for it:
+
+- **Motion is the tell.** Nothing static reads as a simulation. One pane
+  changing while you watch does more than any amount of pattern.
+- **Let some towers be visibly dead.** A facade that has settled to a still
+  life, next to one still churning, is the contrast that says *this is
+  running* — and it is Thread 2 stated in architecture.
+- **Gliders across facades.** A pattern that visibly travels is unmistakably
+  a rule rather than a texture, and it is the same object the Fold already
+  teaches the player to recognise.
+- **The ground floor as a control.** Windows are already suppressed in the
+  ground storey; leaving that band dark gives the eye a still reference to
+  read the moving ones against.
+
+Blocked on nothing technically. Left here rather than started because it
+wants a pass of its own, and because step 4 changes the anomaly design that
+was only just changed once.
+
 ## Narrative & characters
 
 ### Story and lore
