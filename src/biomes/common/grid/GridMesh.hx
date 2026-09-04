@@ -140,14 +140,66 @@ class GridMesh {
 		`buildFloorPrim`'s own doc for why this exists.
 		@param maze the layout to build walls for.
 		@param wallsOutward whether walls extrude away from the sphere's centre — see `build`.
+		@param glowUv whether to emit `graphics.shaders.ConwayWallGlow`'s own UV/normal convention (raw world-unit face length, 0..1 base-to-top, constant zero activity) instead of the default texture-tile UVs — see `biomes.weft.WeftMesh`, the one caller that wants it.
+		@param skipEdge when given, an edge this function should leave out of the built geometry entirely (as if it were open) regardless of its actual state — `biomes.weft.WeftMesh`'s own gate walls, built and colored separately (`buildSingleWallPiecePrim`) so they don't double up with this mesh's own uniform material.
 		@return the walls' own polygon, no material.
 	**/
-	public static function buildWallPrim(maze:GridData, wallsOutward:Bool = false):h3d.prim.Polygon {
-		var wallBuilder = new WallBuilder(maze, wallsOutward);
+	public static function buildWallPrim(maze:GridData, wallsOutward:Bool = false, glowUv:Bool = false,
+			?skipEdge:(GridNode, GridNode) -> Bool):h3d.prim.Polygon {
+		var wallBuilder = new WallBuilder(maze, wallsOutward, glowUv, skipEdge);
 		eachCell((row, col) -> wallBuilder.addWallsAround(row, col));
 		var wallPrim = new h3d.prim.Polygon(wallBuilder.points, wallBuilder.idx);
 		wallPrim.uvs = wallBuilder.uvs;
+		if (glowUv) {
+			wallPrim.normals = wallBuilder.normals;
+		}
 		return wallPrim;
+	}
+
+	/**
+		One ring cell's own standalone west/east wall piece, built the same
+		way `WallBuilder.maybeAddPiece` builds an ordinary one (inner face,
+		top cap, both end caps, extruded to `WALL_HEIGHT`) — factored out for
+		a caller that wants exactly one specific wall's own geometry on its
+		own, uncombined with the rest of a maze's wall mesh
+		(`biomes.weft.WeftMesh`'s gate highlights, colored apart from the
+		uniform wall material via `buildWallPrim`'s own `skipEdge`).
+
+		Always both end caps, unlike `maybeAddPiece`'s own flush/corner
+		logic — a correctness nicety for how two *ordinary* adjacent walls
+		join cleanly at a shared corner, which a single standalone highlight
+		piece (never adjacent to another wall of its own kind) has no need
+		of. No UVs either: a caller coloring this with `h3d.shader.FixedColor`
+		(flat, no texture) has nothing to sample them.
+		@param row the cell's row.
+		@param col the cell's column.
+		@param west whether to build the west side (true) or east side (false).
+		@param wallsOutward whether the wall extrudes away from the sphere's centre — see `build`.
+		@return that side's own wall piece, regardless of whether it's actually open or closed.
+	**/
+	public static function buildSingleWallPiecePrim(row:Int, col:Int, west:Bool, wallsOutward:Bool = false):h3d.prim.Polygon {
+		var outer = cornersOf(row, col);
+		var inner = innerCornersOf(row, col);
+		var outerA = west ? outer.nw : outer.se;
+		var outerB = west ? outer.sw : outer.ne;
+		var innerA = west ? inner.nw : inner.se;
+		var innerB = west ? inner.sw : inner.ne;
+
+		var center = new h3d.Vector(0, 0, 0);
+		var upA = wallsOutward ? outerA.normalized() : SphereMath.upVectorAt(outerA, center);
+		var upB = wallsOutward ? outerB.normalized() : SphereMath.upVectorAt(outerB, center);
+		var topOuterA = outerA.add(upA.scaled(WALL_HEIGHT));
+		var topOuterB = outerB.add(upB.scaled(WALL_HEIGHT));
+		var topInnerA = innerA.add(upA.scaled(WALL_HEIGHT));
+		var topInnerB = innerB.add(upB.scaled(WALL_HEIGHT));
+
+		var points:Array<h3d.Vector> = [];
+		var idx = new hxd.IndexBuffer();
+		MeshBuilder.addQuad(points, idx, innerA, innerB, topInnerB, topInnerA); // inner face
+		MeshBuilder.addQuad(points, idx, topOuterA, topOuterB, topInnerB, topInnerA); // top cap
+		MeshBuilder.addQuad(points, idx, outerA, innerA, topInnerA, topOuterA); // A end cap
+		MeshBuilder.addQuad(points, idx, innerB, outerB, topOuterB, topInnerB); // B end cap
+		return new h3d.prim.Polygon(points, idx);
 	}
 
 	/**
@@ -360,14 +412,25 @@ private class WallBuilder {
 	/** Wall UV buffer, parallel to `points` — one entry per vertex, in the same push order. **/
 	public final uvs:Array<h3d.prim.UV> = [];
 
+	/** `graphics.shaders.ConwayWallGlow`'s own per-vertex activity channel, parallel to `points` — only populated when `glowUv` is set; empty (and unused) otherwise. **/
+	public final normals:Array<h3d.col.Point> = [];
+
 	final maze:GridData;
 
 	/** Which way walls rise — see `GridMesh.build`'s own `wallsOutward` parameter. **/
 	final wallsOutward:Bool;
 
-	public function new(maze:GridData, wallsOutward:Bool = false) {
+	/** See `GridMesh.buildWallPrim`'s own `glowUv` parameter. **/
+	final glowUv:Bool;
+
+	/** See `GridMesh.buildWallPrim`'s own `skipEdge` parameter. **/
+	final skipEdge:Null<(GridNode, GridNode) -> Bool>;
+
+	public function new(maze:GridData, wallsOutward:Bool = false, glowUv:Bool = false, ?skipEdge:(GridNode, GridNode) -> Bool) {
 		this.maze = maze;
 		this.wallsOutward = wallsOutward;
+		this.glowUv = glowUv;
+		this.skipEdge = skipEdge;
 	}
 
 	/**
@@ -667,6 +730,9 @@ private class WallBuilder {
 		if (GridModel.isOpen(maze, a, b)) {
 			return;
 		}
+		if (skipEdge != null && skipEdge(a, b)) {
+			return; // built and colored separately by the caller — see GridMesh.buildWallPrim's own doc
+		}
 
 		// "Up" for a wall is whichever way the player standing beside it has
 		// over their head — toward the centre on the shell's inside, away from
@@ -703,9 +769,31 @@ private class WallBuilder {
 		}
 	}
 
-	/** Appends a quad plus matching UVs — `a`/`d` at u=0, `b`/`c` at u=uRepeat, `a`/`b` at v=vSpan, `c`/`d` at v=0. **/
+	/**
+		Appends a quad plus matching UVs — `a`/`d` at u=0, `b`/`c` at u=uRepeat,
+		`a`/`b` at v=vSpan, `c`/`d` at v=0 — or, when `glowUv` is set, the
+		`graphics.shaders.ConwayWallGlow` convention instead
+		(`tools.geodesic.GeodesicMesh.addWallFace`'s own, ported unchanged):
+		`a`/`b` (the quad's own base edge, by every call site's own a/b/c/d
+		ordering — base, base, top, top) at v=0, `c`/`d` at v=1, u running
+		0..faceLength in raw world units rather than texture-tile repeats, plus
+		a constant zero-activity normal per vertex — this grid has no
+		Conway-style "about to flip" reading to drive the glow's pulse with,
+		so every wall just sits at the shader's own rest brightness.
+	**/
 	function addTexturedQuad(a:h3d.Vector, b:h3d.Vector, c:h3d.Vector, d:h3d.Vector, uRepeat:Float, vSpan:Float):Void {
 		MeshBuilder.addQuad(points, idx, a, b, c, d);
+		if (glowUv) {
+			var faceLength = a.sub(b).length();
+			uvs.push(new h3d.prim.UV(0, 0));
+			uvs.push(new h3d.prim.UV(faceLength, 0));
+			uvs.push(new h3d.prim.UV(faceLength, 1));
+			uvs.push(new h3d.prim.UV(0, 1));
+			for (_ in 0...4) {
+				normals.push(new h3d.col.Point(0, 0, 0));
+			}
+			return;
+		}
 		uvs.push(new h3d.prim.UV(0, vSpan));
 		uvs.push(new h3d.prim.UV(uRepeat, vSpan));
 		uvs.push(new h3d.prim.UV(uRepeat, 0));

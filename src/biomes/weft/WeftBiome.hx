@@ -12,6 +12,7 @@ import biomes.hub.HubBiome;
 import biomes.maze.MazeExitWall;
 import biomes.maze.MazeExitWall.FoundWall;
 import biomes.maze.MazeGenerator;
+import biomes.weft.WeftModel.WeftGate;
 import entities.painting.PaintingModel;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
@@ -60,11 +61,30 @@ import entities.player.PlayerModel;
 	the hemisphere generation it now performs), `WeftMesh` (the dialect),
 	and the echo.
 
-	**Not built yet:** the puzzle. There is no gate that specifically
-	requires reaching through the antipode, because that is level design
-	and it should be authored against a mechanic already known to read.
-	What is here answers the prior question — can a player act on a wall,
-	see the consequence at their antipode, and understand what happened.
+	**The gates (2026-08-18, generalized from a single one the same day).**
+	`WeftModel.sealKeystoneGates` seals up to `GATE_COUNT` walls shut; each
+	one, unlike every ordinary wall here, refuses to answer `interact`
+	directly (this class's own `isLocked`). A gate still obeys the pairing
+	rule underneath, so it still opens the instant its antipodal partner
+	closes — the player just cannot make that happen standing next to it.
+	The exit painting moves into the first gate's now-reachable vault, so
+	leaving the Weft at all requires solving *that one* once; any further
+	gates are optional side-vaults, not additional exit requirements.
+	Asked directly: "I'd like it if the user had to alternate between
+	direct view and antipodal view to figure out tricks and find the
+	way."
+
+	**Made "too obvious" on purpose, for now** (asked directly, to be
+	revisited toward something subtler once the mechanic itself is
+	proven out): each gate's lock and partner walls render in flat
+	stop/go red and green (`WeftMesh`'s own `Colours.WEFT_GATE_LOCK`/
+	`WEFT_GATE_KEY`, standing apart from the uniform Fold-cyan everywhere
+	else), and two beacons of the same two colors
+	(`buildKeystoneMarkers`) mark both ends even while a wall isn't
+	currently rendered there (an open partner has no wall panel to color,
+	same as any open edge) — visible from across the sphere the same way
+	any other distant geometry is, the Fold's own "raise your head"
+	legibility, not a new instrument.
 **/
 class WeftBiome implements Biome {
 	public static inline final ID:String = "weft";
@@ -80,6 +100,15 @@ class WeftBiome implements Biome {
 	/** Pale, and the brightest thing in the biome — value, not hue, since hue belongs to curvature. **/
 	static inline final ECHO_COLOR:Int = 0xF0ECE2;
 
+	/** Half-extent of one `buildKeystoneMarkers` beacon — a touch larger than the echo (`ECHO_SIZE`), since a beacon has to read from across the sphere rather than up close. **/
+	static inline final KEYSTONE_MARKER_SIZE:Float = 3.6;
+
+	/** How far above the floor a beacon floats — same reasoning as `ECHO_HEIGHT`. **/
+	static inline final KEYSTONE_MARKER_HEIGHT:Float = 5;
+
+	/** How many gates `WeftModel.sealKeystoneGates` tries to place — untuned, a reasonable first guess ("several tricky moments," not one) rather than a measured value; the maze may legitimately end up with fewer, see that function's own doc. **/
+	static inline final GATE_COUNT:Int = 3;
+
 	static inline final SPAWN_THETA:Float = 1.35;
 	static inline final SPAWN_PHI:Float = 2.1;
 	static inline final SPAWN_FACING:Float = 0.0;
@@ -90,6 +119,9 @@ class WeftBiome implements Biome {
 	var maze:GridData;
 	var exitWall:FoundWall;
 
+	/** This maze's own sealed gates — see the class doc. Possibly empty, on the rare layout with no valid candidate at all, in which case there is no puzzle this playthrough and `exitWall` falls back to `MazeExitWall.find`'s ordinary scan. **/
+	var gates:Array<WeftGate>;
+
 	/** The whole rebuildable world — replaced wholesale whenever a wall is toggled, since a flip changes geometry on two sides of the sphere at once. **/
 	var world:Null<h3d.scene.Object>;
 
@@ -99,11 +131,34 @@ class WeftBiome implements Biome {
 		reload(MazeGenerator.generate(random));
 	}
 
-	/** Adopts a layout, forces the opposite-rule invariant onto it, and re-derives the exit. **/
+	/**
+		Adopts a layout, forces the opposite-rule invariant onto it, seals
+		up to `GATE_COUNT` vaults behind gates (if this layout has valid
+		candidates for any), and re-derives the exit.
+	**/
 	function reload(layout:GridData):Void {
 		WeftModel.enforceOpposite(layout);
 		maze = layout;
-		exitWall = MazeExitWall.find(maze);
+
+		var candidates = WeftModel.sealKeystoneGates(maze, GATE_COUNT);
+		if (candidates.length == 0) {
+			gates = [];
+			exitWall = MazeExitWall.find(maze);
+			return;
+		}
+
+		var built:Array<WeftGate> = [];
+		for (candidate in candidates) {
+			var gate = WeftModel.gateOf(candidate);
+			if (gate != null) {
+				built.push(gate);
+			}
+		}
+		gates = built;
+
+		var exit = candidates[0];
+		exitWall = MazeExitWall.wallAt(exit.vaultRow, exit.vaultCol,
+			!exit.lockIsWest); // the first vault's other west/east side — guaranteed closed, since the vault was a leaf with only the lock side open. Only this one gate gates the exit; any further gates are optional side-vaults.
 	}
 
 	public function id():String {
@@ -114,9 +169,9 @@ class WeftBiome implements Biome {
 		return GRAVITY;
 	}
 
-	/** Warm — κ>0, and hue carries only that (see `WeftMesh` for the rest of the palette this sits behind). **/
+	/** The Fold's own background (`biomes.conway.ConwayBiome.BACKGROUND_COLOR`) — matched here alongside `WeftMesh`'s own floor/wall dialect swap (2026-08-17), so the ambient tone agrees with the now-cold geometry instead of the old warm amber dialect it was tuned for. **/
 	public function backgroundColor():Int {
-		return 0x1A1512;
+		return biomes.conway.ConwayBiome.BACKGROUND_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
@@ -140,7 +195,41 @@ class WeftBiome implements Biome {
 			return; // not built yet
 		}
 		container.removeChildren();
-		WeftMesh.build(maze, container);
+		WeftMesh.build(maze, container, gates);
+		buildKeystoneMarkers(container);
+	}
+
+	/**
+		Two beacons per gate marking its own two ends — the sealed vault's
+		lock (red, `Colours.WEFT_GATE_LOCK`) and the far wall that actually
+		answers to it (green, `Colours.WEFT_GATE_KEY`) — same colors
+		`WeftMesh`'s own gate walls use, so a beacon and its wall read as
+		one thing once a player is close enough to see both. Unlike `echo`,
+		none of these move, so they're built once per `rebuild` alongside
+		the walls rather than tracked per-frame. Two batches, not one: a
+		`game.BoxBatch` is one color for its whole batch, and lock/key are
+		deliberately different colors.
+		@param container the scene node to attach the beacons under.
+	**/
+	function buildKeystoneMarkers(container:h3d.scene.Object):Void {
+		var lockBatch = new game.BoxBatch(container, graphics.Colours.WEFT_GATE_LOCK);
+		var keyBatch = new game.BoxBatch(container, graphics.Colours.WEFT_GATE_KEY);
+		for (gate in gates) {
+			addKeystoneMarker(lockBatch, gate.lock.a, gate.lock.b);
+			addKeystoneMarker(keyBatch, gate.partner.a, gate.partner.b);
+		}
+		lockBatch.flush();
+		keyBatch.flush();
+	}
+
+	/** One beacon, floating at a wall's own midpoint — `a`/`b` need not be in west/east order, only their shared wall's location matters. **/
+	function addKeystoneMarker(batch:game.BoxBatch, a:GridNode, b:GridNode):Void {
+		var sides = WeftModel.edgeSidesOf(a, b);
+		var wall = MazeExitWall.wallAt(sides.aSide.row, sides.aSide.col, sides.aSide.west);
+		var mid = wall.a.add(wall.b).scaled(0.5);
+		var outward = mid.normalized();
+		var stand = mid.sub(outward.scaled(KEYSTONE_MARKER_HEIGHT));
+		batch.add(stand.x, stand.z, KEYSTONE_MARKER_SIZE, KEYSTONE_MARKER_SIZE, stand.y, KEYSTONE_MARKER_SIZE * 2);
 	}
 
 	public function spawnPlayer(returning:Bool, fromBiomeId:Null<String>):PlayerModel {
@@ -188,18 +277,38 @@ class WeftBiome implements Biome {
 		standing in a corner, "nearest" is ambiguous and "the one I am
 		looking at" is not. A wall with no partner (see `WeftModel`) does
 		not move — the rule is the only thing that gives the player any
-		purchase here, and a wall outside it is simply scenery.
+		purchase here, and a wall outside it is simply scenery. Neither does
+		`lock` — see `isLocked`'s own doc.
 		@param player the player acting.
 	**/
 	public function interact(player:PlayerModel):Void {
 		var here = GridModel.nodeAt(SphereMath.thetaOf(player.pos), SphereMath.phiOf(player.pos));
 		var facing = mostFacedNeighbor(player, here);
-		if (facing == null) {
+		if (facing == null || isLocked(here, facing)) {
 			return;
 		}
 		if (WeftModel.toggle(maze, here, facing)) {
 			rebuild();
 		}
+	}
+
+	/**
+		Whether `a`-`b` is any gate's own lock — a wall the player cannot
+		open by standing next to it, only by finding and toggling its
+		antipodal partner instead (`WeftModel.toggle` still flips it then,
+		same as any other paired wall — this only blocks *this specific
+		edge* from `interact`, not the pairing rule itself). A gate's
+		*partner* edge is deliberately not checked here: it's an ordinary,
+		freely-toggleable wall, just a colored one.
+	**/
+	function isLocked(a:GridNode, b:GridNode):Bool {
+		var key = GridModel.edgeKey(a, b);
+		for (gate in gates) {
+			if (GridModel.edgeKey(gate.lock.a, gate.lock.b) == key) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Which neighbour of `here` the player is looking most directly toward. **/

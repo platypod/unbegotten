@@ -205,4 +205,119 @@ class PlayerModelTest extends Test {
 		Assert.isTrue(oldUp.dot(player.surfaceUp) > 0.99);
 		Assert.isTrue(player.surfaceUp.dot(player.space.upAt(player.pos)) < -0.99);
 	}
+
+	// ------------------------------------------------------------------
+	// Jump feel (coyote time, buffering, variable height, throttle).
+	// None of this is visible in a screenshot and all of it is timing, so
+	// it is pinned here rather than left to be felt — the numbers can be
+	// retuned freely, but the *rules* below are what "responsive" means.
+	// ------------------------------------------------------------------
+
+	function freshPlayer():PlayerModel {
+		return PlayerModel.spawnAt(1, 0, 0, 50);
+	}
+
+	function testWalkingOffAnEdgeStillAllowsAJumpInsideTheCoyoteWindow():Void {
+		var player = freshPlayer();
+		player.grounded = false; // stepped off, did not jump
+
+		player.updateJump(PlayerModel.COYOTE_TIME * 0.5);
+		player.requestJump(18);
+
+		Assert.isTrue(player.verticalVelocity > 0, "a jump just after leaving the ground should still fire");
+	}
+
+	function testTheCoyoteWindowCloses():Void {
+		var player = freshPlayer();
+		player.grounded = false;
+
+		player.updateJump(PlayerModel.COYOTE_TIME * 2);
+		player.requestJump(18);
+
+		Assert.floatEquals(0, player.verticalVelocity, 1e-9);
+	}
+
+	function testJumpingDoesNotItselfOpenACoyoteWindow():Void {
+		// Otherwise the window would grant a silent second jump in mid-air,
+		// which is a different mechanic entirely and not one we chose.
+		var player = freshPlayer();
+
+		player.requestJump(18);
+		var afterFirst = player.verticalVelocity;
+		player.updateJump(PlayerModel.COYOTE_TIME * 0.5);
+		// A *different* impulse, deliberately: reusing 18 here made this
+		// test pass against a launch() that did grant itself a window,
+		// since the second jump wrote back the same number.
+		player.requestJump(30);
+
+		Assert.floatEquals(afterFirst, player.verticalVelocity, 1e-9);
+	}
+
+	function testAJumpPressedJustBeforeLandingFiresOnLanding():Void {
+		var player = freshPlayer();
+		player.grounded = false;
+		player.updateJump(PlayerModel.COYOTE_TIME * 2); // well past coyote
+
+		player.requestJump(18); // too early — buffered, not fired
+		Assert.floatEquals(0, player.verticalVelocity, 1e-9);
+
+		player.grounded = true; // the biome's applyGravity lands them
+		player.updateJump(1 / 60.0);
+
+		Assert.isTrue(player.verticalVelocity > 0, "a buffered jump should fire on landing");
+	}
+
+	function testABufferedJumpExpires():Void {
+		var player = freshPlayer();
+		player.grounded = false;
+		player.updateJump(PlayerModel.COYOTE_TIME * 2);
+
+		player.requestJump(18);
+		player.updateJump(PlayerModel.JUMP_BUFFER_TIME * 2);
+		player.grounded = true;
+		player.updateJump(1 / 60.0);
+
+		Assert.floatEquals(0, player.verticalVelocity, 1e-9);
+	}
+
+	function testReleasingTheKeyMidRiseCutsTheJumpShort():Void {
+		var player = freshPlayer();
+		player.requestJump(18);
+		var full = player.verticalVelocity;
+
+		player.releaseJump();
+
+		Assert.floatEquals(full * PlayerModel.JUMP_CUT_FACTOR, player.verticalVelocity, 1e-9);
+	}
+
+	function testReleasingTheKeyWhileFallingDoesNotSpeedTheFall():Void {
+		var player = freshPlayer();
+		player.requestJump(18);
+		player.verticalVelocity = -5; // already descending
+
+		player.releaseJump();
+
+		Assert.floatEquals(-5, player.verticalVelocity, 1e-9);
+	}
+
+	function testThrottleRampsUpAndBackDownWithinItsOwnTimes():Void {
+		var player = freshPlayer();
+		Assert.floatEquals(0, player.throttle, 1e-9);
+
+		player.updateThrottle(PlayerModel.ACCELERATION_TIME, true);
+		Assert.floatEquals(1, player.throttle, 1e-9);
+
+		player.updateThrottle(PlayerModel.DECELERATION_TIME, false);
+		Assert.floatEquals(0, player.throttle, 1e-9);
+	}
+
+	function testThrottleNeverLeavesTheZeroToOneRange():Void {
+		var player = freshPlayer();
+
+		player.updateThrottle(10, true);
+		Assert.floatEquals(1, player.throttle, 1e-9);
+
+		player.updateThrottle(10, false);
+		Assert.floatEquals(0, player.throttle, 1e-9);
+	}
 }

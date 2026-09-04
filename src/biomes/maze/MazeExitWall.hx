@@ -44,17 +44,32 @@ class MazeExitWall {
 				var here = RingNode(row, col);
 				var west = RingNode(row, (col - 1 + cols) % cols);
 				if (!GridModel.isOpen(maze, here, west)) {
-					var inner = GridMesh.innerCornersOf(row, col);
-					return {a: inner.nw, b: inner.sw, cellCenter: cellCenterOf(row, col)};
+					return wallAt(row, col, true);
 				}
 				var east = RingNode(row, (col + 1) % cols);
 				if (!GridModel.isOpen(maze, here, east)) {
-					var inner = GridMesh.innerCornersOf(row, col);
-					return {a: inner.ne, b: inner.se, cellCenter: cellCenterOf(row, col)};
+					return wallAt(row, col, false);
 				}
 			}
 		}
 		throw "unreachable: a generated/imported maze is a spanning tree, so some west/east edge is always closed somewhere";
+	}
+
+	/**
+		One ring cell's own west or east wall segment, regardless of whether
+		that side is actually open or closed — `find`'s own corner math,
+		factored out so a caller that already knows *which* wall it wants
+		(`biomes.weft.WeftBiome`, mounting its exit painting on its own
+		hand-picked vault cell instead of `find`'s "first closed edge" scan)
+		doesn't have to duplicate it.
+		@param row the cell's row.
+		@param col the cell's column.
+		@param west whether to build the west side (true) or east side (false).
+		@return that side's own wall segment.
+	**/
+	public static function wallAt(row:Int, col:Int, west:Bool):FoundWall {
+		var inner = GridMesh.innerCornersOf(row, col);
+		return west ? {a: inner.nw, b: inner.sw, cellCenter: cellCenterOf(row, col)} : {a: inner.ne, b: inner.se, cellCenter: cellCenterOf(row, col)};
 	}
 
 	/** A ring cell's center point — same theta/phi formula `GridMesh.cornersOf`/`innerCornersOf` use internally. **/

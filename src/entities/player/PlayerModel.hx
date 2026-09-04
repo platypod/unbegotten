@@ -56,6 +56,27 @@ class PlayerModel extends Entity {
 	**/
 	public static inline final MAX_PITCH:Float = 1.55; // ~88.8 degrees
 
+	/**
+		Movement-feel tuning. These four are the whole of "tier 1" — no new
+		verb, just making the jump the game already has honest about what
+		the player meant. **Starting values, not tuned**: they were chosen
+		from platformer convention, and per CLAUDE.md's own note Claude
+		cannot drive the game to feel them, so they want a pass by hand.
+	**/
+	public static inline final COYOTE_TIME:Float = 0.12;
+
+	/** See `COYOTE_TIME`. **/
+	public static inline final JUMP_BUFFER_TIME:Float = 0.15;
+
+	/** Fraction of upward speed kept when the jump key is released mid-rise. See `COYOTE_TIME`. **/
+	public static inline final JUMP_CUT_FACTOR:Float = 0.45;
+
+	/** Seconds from standing still to full walk speed. See `COYOTE_TIME`. **/
+	public static inline final ACCELERATION_TIME:Float = 0.14;
+
+	/** Seconds from full walk speed back to standing still. See `COYOTE_TIME`. **/
+	public static inline final DECELERATION_TIME:Float = 0.10;
+
 	/** Position on the sphere's interior surface. **/
 	public var pos:h3d.Vector;
 
@@ -107,7 +128,48 @@ class PlayerModel extends Entity {
 		decided. `jump` only takes effect while this is true, so holding the
 		key doesn't stack impulses in mid-air.
 	**/
-	public var grounded:Bool = true;
+	public var grounded(default, set):Bool = true;
+
+	/**
+		Seconds of grace left in which a jump still works after walking off
+		an edge — "coyote time". Opened by `set_grounded` when the ground
+		goes away *without* a jump having caused it, so stepping off a ledge
+		stays forgiving while jumping off one does not (that would be a
+		silent double jump).
+	**/
+	var coyoteRemaining:Float = 0;
+
+	/**
+		Seconds left for a jump pressed slightly too early to still fire on
+		landing. Without this, a press during the last few frames of a fall
+		is simply eaten, which reads as the game ignoring input rather than
+		as the player being early — the single most common "unresponsive
+		controls" complaint in any 3D platformer.
+	**/
+	var jumpBufferRemaining:Float = 0;
+
+	/** Impulse the buffered jump should fire at, captured at press time. **/
+	var bufferedImpulse:Float = 0;
+
+	/**
+		Whether releasing the jump key can still cut this jump short. True
+		from launch until either the key is released or the rise ends, so
+		hold height is continuous rather than one fixed arc — a tap clears a
+		low wall, a hold clears a high one, off the same button.
+	**/
+	var jumpCutAvailable:Bool = false;
+
+	/**
+		Eased 0..1 scale on walk speed, ramped by `updateThrottle`. A scalar
+		rather than a velocity vector on purpose: a real horizontal momentum
+		vector would have to be parallel-transported every time `pos` moves
+		on a curved surface (the same problem `moveAlong` solves for
+		`forward`), and every biome here is curved. Scaling the existing
+		direction-driven movement buys the weight of acceleration without
+		introducing a second transported quantity that could drift out of
+		the tangent plane.
+	**/
+	public var throttle(default, null):Float = 0;
 
 	/**
 		How far above the surface `pos` sits, along `space.upAt(pos)` — a
@@ -256,11 +318,102 @@ class PlayerModel extends Entity {
 		@param impulse initial upward speed.
 	**/
 	public function jump(impulse:Float):Void {
-		if (!grounded) {
+		if (!grounded && coyoteRemaining <= 0) {
 			return;
 		}
+		launch(impulse);
+	}
+
+	/**
+		Handles a jump key *press*: jumps now if that is possible (on the
+		ground, or inside the coyote window), and otherwise remembers the
+		press for `JUMP_BUFFER_TIME` so it fires the moment the player
+		lands.
+		@param impulse initial upward speed to launch at.
+	**/
+	public function requestJump(impulse:Float):Void {
+		if (grounded || coyoteRemaining > 0) {
+			launch(impulse);
+			return;
+		}
+		jumpBufferRemaining = JUMP_BUFFER_TIME;
+		bufferedImpulse = impulse;
+	}
+
+	/**
+		Handles a jump key *release*: cuts an in-progress rise short, which
+		is what makes hold height continuous. Only ever reduces upward
+		speed, so releasing while already falling does nothing.
+	**/
+	public function releaseJump():Void {
+		if (!jumpCutAvailable) {
+			return;
+		}
+		jumpCutAvailable = false;
+		if (verticalVelocity > 0) {
+			verticalVelocity *= JUMP_CUT_FACTOR;
+		}
+	}
+
+	/**
+		Advances the jump timers by one fixed step and fires a buffered jump
+		if the player has landed since it was pressed.
+
+		**Must be called after the biome's own `applyGravity`**, not before:
+		that is what sets `grounded` for this tick, and a buffered jump is
+		precisely a jump that wants to fire on the tick the landing happens
+		rather than the one after it.
+		@param dt fixed timestep duration, in seconds.
+	**/
+	public function updateJump(dt:Float):Void {
+		if (coyoteRemaining > 0) {
+			coyoteRemaining -= dt;
+		}
+		if (verticalVelocity <= 0) {
+			jumpCutAvailable = false;
+		}
+		if (jumpBufferRemaining > 0) {
+			jumpBufferRemaining -= dt;
+			if (grounded) {
+				jumpBufferRemaining = 0;
+				launch(bufferedImpulse);
+			}
+		}
+	}
+
+	/**
+		Eases `throttle` toward 1 while a movement key is held and back to 0
+		once it is not, so starting and stopping have weight instead of
+		snapping between still and full speed.
+		@param dt fixed timestep duration, in seconds.
+		@param moving whether any movement input is currently held.
+	**/
+	public function updateThrottle(dt:Float, moving:Bool):Void {
+		var rate = moving ? 1 / ACCELERATION_TIME : -1 / DECELERATION_TIME;
+		throttle = hxd.Math.clamp(throttle + rate * dt, 0, 1);
+	}
+
+	function launch(impulse:Float):Void {
 		verticalVelocity = impulse;
+		jumpCutAvailable = true;
+		// Order matters, and not obviously: assigning `grounded = false`
+		// runs `set_grounded`, which opens a coyote window on any
+		// ground-to-air transition. Zeroing it has to come *after* that
+		// assignment or the jump grants its own window and becomes an
+		// unlimited mid-air jump. Pinned by
+		// `PlayerModelTest.testJumpIsANoOpWhileAirborne`.
 		grounded = false;
+		coyoteRemaining = 0;
+	}
+
+	function set_grounded(value:Bool):Bool {
+		// Only a landing-to-airborne transition the player did not cause by
+		// jumping opens the window; `launch` zeroes it immediately after
+		// setting this false, so a jump never grants a second one.
+		if (grounded && !value) {
+			coyoteRemaining = COYOTE_TIME;
+		}
+		return grounded = value;
 	}
 
 	function applyMoveResult(result:{pos:h3d.Vector, forward:h3d.Vector}):Void {

@@ -241,6 +241,124 @@ class WeftModelTest extends Test {
 		Assert.fail("no paired wall was found");
 	}
 
+	/**
+		**The gate exists and is genuinely solvable.** A found candidate's
+		vault has exactly one open neighbor (west or east), that neighbor is
+		itself pairable, and the pair has a real partner elsewhere on the
+		sphere — everything `WeftBiome.reload` needs to seal the vault shut
+		and know where its far mirror is.
+	**/
+	function testFindKeystoneCandidateFindsAGenuineLeafWithAPartner():Void {
+		var maze = freshMaze();
+		var candidate = WeftModel.findKeystoneCandidate(maze);
+		Assert.notNull(candidate, "no keystone candidate found in a freshly generated maze");
+		if (candidate == null) {
+			return;
+		}
+
+		var openNeighbors = [
+			for (neighbor in GridModel.neighborsOf(candidate.vault))
+				if (GridModel.isOpen(maze, candidate.vault, neighbor)) neighbor
+		];
+		Assert.equals(1, openNeighbors.length, "the candidate vault is not a leaf");
+		Assert.equals(key(candidate.approach), key(openNeighbors[0]), "the candidate's approach is not its one open neighbor");
+
+		var cols = GridModel.colsForRow(candidate.vaultRow);
+		var west = RingNode(candidate.vaultRow, (candidate.vaultCol - 1 + cols) % cols);
+		var east = RingNode(candidate.vaultRow, (candidate.vaultCol + 1) % cols);
+		var expectedApproach = candidate.lockIsWest ? west : east;
+		Assert.equals(key(expectedApproach), key(candidate.approach), "lockIsWest disagrees with the approach node it names");
+
+		Assert.notNull(WeftModel.partnerOf(candidate.vault, candidate.approach), "the candidate's own lock edge has no partner");
+	}
+
+	/** The candidate always sits in the northern ("generating") hemisphere — `enforceOpposite` never touches a northern edge, so sealing the vault by toggling it (which `WeftBiome.reload` does) has a predictable, single effect: the vault's own side closes, and the southern partner opens as its mirror, not the other way around. **/
+	function testFindKeystoneCandidateIsAlwaysNorthern():Void {
+		var candidate = WeftModel.findKeystoneCandidate(freshMaze());
+		Assert.notNull(candidate);
+		if (candidate == null) {
+			return;
+		}
+		Assert.isTrue(isNorthOf(candidate.vault), 'candidate vault ${key(candidate.vault)} is not northern');
+	}
+
+	/** `ringPositionOf` recovers the exact row/col a `RingNode` was built from — the shape `MazeExitWall.wallAt` needs, from the `GridNode` values `partnerOf` hands back. **/
+	function testRingPositionOfRecoversRowAndCol():Void {
+		var pos = WeftModel.ringPositionOf(RingNode(4, 7));
+		Assert.equals(4, pos.row);
+		Assert.equals(7, pos.col);
+	}
+
+	/**
+		**Several gates, never reusing a wall.** `sealKeystoneGates` seals
+		each candidate it finds before searching for the next, which this
+		test's own claim depends on: every gate's lock edge is distinct from
+		every other gate's lock *and* partner edges, and likewise for
+		partners — nothing doubles up as two different gates' own roles.
+	**/
+	function testSealKeystoneGatesNeverReusesAWall():Void {
+		var maze = freshMaze();
+		var gates = WeftModel.sealKeystoneGates(maze, 5);
+		Assert.isTrue(gates.length > 1, "fewer than two gates were placed — not enough to test for reuse");
+
+		var seenEdges = new Map<String, Bool>();
+		for (candidate in gates) {
+			var partner = WeftModel.partnerOf(candidate.vault, candidate.approach);
+			Assert.notNull(partner, "a sealed gate's own lock has no partner");
+			if (partner == null) {
+				continue;
+			}
+			var lockKey = GridModel.edgeKey(candidate.vault, candidate.approach);
+			var partnerKey = GridModel.edgeKey(partner.a, partner.b);
+			Assert.isFalse(seenEdges.exists(lockKey), 'lock edge $lockKey was sealed by more than one gate');
+			Assert.isFalse(seenEdges.exists(partnerKey), 'partner edge $partnerKey was sealed by more than one gate');
+			seenEdges.set(lockKey, true);
+			seenEdges.set(partnerKey, true);
+		}
+	}
+
+	/** Every gate `sealKeystoneGates` places is actually sealed: the vault's own lock edge reads closed once the function returns (its partner having taken the opposite, open state, per the pairing invariant). **/
+	function testSealKeystoneGatesActuallySealsEveryLock():Void {
+		var maze = freshMaze();
+		var gates = WeftModel.sealKeystoneGates(maze, 5);
+		Assert.isTrue(gates.length > 0, "no gates were placed at all");
+
+		for (candidate in gates) {
+			Assert.isFalse(GridModel.isOpen(maze, candidate.vault, candidate.approach), 'gate at ${key(candidate.vault)} was not sealed shut');
+		}
+	}
+
+	/** `gateOf` reports the same lock and a real partner for a candidate `sealKeystoneGates` already placed — the shape `WeftMesh`'s highlights and `WeftBiome.isLocked` both read. **/
+	function testGateOfReportsTheLockAndItsRealPartner():Void {
+		var maze = freshMaze();
+		var gates = WeftModel.sealKeystoneGates(maze, 1);
+		Assert.equals(1, gates.length);
+		var candidate = gates[0];
+
+		var gate = WeftModel.gateOf(candidate);
+		Assert.notNull(gate);
+		if (gate == null) {
+			return;
+		}
+		Assert.equals(GridModel.edgeKey(candidate.vault, candidate.approach), GridModel.edgeKey(gate.lock.a, gate.lock.b));
+		var partner = WeftModel.partnerOf(candidate.vault, candidate.approach);
+		Assert.notNull(partner);
+		if (partner == null) {
+			return;
+		}
+		Assert.equals(GridModel.edgeKey(partner.a, partner.b), GridModel.edgeKey(gate.partner.a, gate.partner.b));
+	}
+
+	/** `edgeSidesOf` reports each endpoint's own row/col unchanged, and exactly one of the two sides as "west" (from that side's own perspective, `b` sits to its west) — never both, never neither, for a genuine west/east edge. **/
+	function testEdgeSidesOfDisagreesOnWestExactlyOnce():Void {
+		var sides = WeftModel.edgeSidesOf(RingNode(4, 10), RingNode(4, 11));
+		Assert.equals(4, sides.aSide.row);
+		Assert.equals(10, sides.aSide.col);
+		Assert.equals(4, sides.bSide.row);
+		Assert.equals(11, sides.bSide.col);
+		Assert.notEquals(sides.aSide.west, sides.bSide.west);
+	}
+
 	/** An unpaired wall is scenery: the rule declines to move it rather than moving it alone and breaking the invariant. **/
 	function testAnUnpairedWallDoesNotToggle():Void {
 		var maze = freshMaze();

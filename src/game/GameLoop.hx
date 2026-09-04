@@ -397,6 +397,17 @@ class GameLoop {
 			player.turn(TURN_SPEED * scaledDt);
 		}
 		var speed = hxd.Key.isDown(Keybinds.SPRINT) ? WALK_SPEED * SPRINT_MULTIPLIER : WALK_SPEED;
+		// Ramped rather than applied flat, so starting and stopping have
+		// weight — see PlayerModel.throttle for why this is a scalar and
+		// not a velocity vector on these curved surfaces.
+		var moving = hxd.Key.isDown(Keybinds.MOVE_FORWARD)
+			|| PhysicalKeys.isDown(Keybinds.MOVE_FORWARD_ALT)
+			|| hxd.Key.isDown(Keybinds.MOVE_BACKWARD)
+			|| PhysicalKeys.isDown(Keybinds.MOVE_BACKWARD_ALT)
+			|| PhysicalKeys.isDown(Keybinds.STRAFE_LEFT)
+			|| PhysicalKeys.isDown(Keybinds.STRAFE_RIGHT);
+		player.updateThrottle(scaledDt, moving);
+		speed *= player.throttle;
 		if (hxd.Key.isDown(Keybinds.MOVE_FORWARD) || PhysicalKeys.isDown(Keybinds.MOVE_FORWARD_ALT)) {
 			tryMove(player.forward, speed * scaledDt);
 		}
@@ -423,9 +434,16 @@ class GameLoop {
 			// Not scaled: an impulse is a rate, not a distance - its effect
 			// over subsequent ticks already scales via scaledDt through
 			// applyGravity's own integration below.
-			player.jump(JUMP_IMPULSE);
+			player.requestJump(JUMP_IMPULSE);
+		}
+		if (hxd.Key.isReleased(Keybinds.JUMP)) {
+			player.releaseJump();
 		}
 		currentBiome.applyGravity(player, scaledDt);
+		// After applyGravity, never before: that call is what decides
+		// `grounded` for this tick, and a buffered jump exists precisely to
+		// fire on the tick the landing happens rather than the one after.
+		player.updateJump(scaledDt);
 		checkPaintingTrigger();
 	}
 
