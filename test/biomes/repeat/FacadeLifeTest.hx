@@ -333,4 +333,35 @@ class FacadeLifeTest extends Test {
 					life.isAlive(facade, col, row)
 		];
 	}
+
+	function testAFallingPieceLeavesNoTrail():Void {
+		// The bug this exists for was visible from inside the game and
+		// invisible to every test I had written: the piece was painted at
+		// each new row and never erased from the old one, so it smeared up
+		// the facade — and the smear then counted as settled board, so the
+		// next piece landed on it. "Something is on the board" was true the
+		// whole time, which is why the other Tetris tests passed.
+		var life = new FacadeLife();
+		var cells = FacadeLife.COLS * FacadeLife.ROWS;
+		var previous = 0;
+		for (_ in 0...6) {
+			life.step();
+			var alive = aliveIn(life, FacadeLife.TETRIS_FACADE);
+			Assert.isTrue(alive <= 4, 'a single falling piece lit $alive cells on an empty board, so it is leaving a trail');
+			Assert.isTrue(alive < cells, "the board flooded");
+			previous = alive;
+		}
+	}
+
+	function testAPieceSettlesAsExactlyFourCells():Void {
+		// Falls to the floor from an empty board, then stops. Anything but
+		// four means it either smeared on the way down or lost cells.
+		var life = new FacadeLife();
+		for (_ in 0...(FacadeLife.ROWS + 2)) {
+			life.step();
+		}
+		var alive = aliveIn(life, FacadeLife.TETRIS_FACADE);
+		Assert.isTrue(alive >= 4, 'only $alive cells settled, so the piece lost some');
+		Assert.isTrue(alive <= 8, 'a$alive cells are lit after one piece landed and a second spawned');
+	}
 }

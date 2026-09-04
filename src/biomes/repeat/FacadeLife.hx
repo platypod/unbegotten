@@ -264,6 +264,13 @@ class FacadeLife {
 		what Thread 2 says the ghosts are.
 	**/
 	function stepTetris():Void {
+		// Lift the piece off the board first, so everything below reasons
+		// about *settled* cells only. Without this the piece stayed painted
+		// at every row it had passed through: it left a trail up the
+		// facade, and — worse than the look of it — that trail counted as
+		// board, so the next piece landed on the smear instead of falling.
+		erasePiece();
+
 		if (piece.length == 0) {
 			spawnPiece();
 			return;
@@ -277,10 +284,19 @@ class FacadeLife {
 			return;
 		}
 
-		lockPiece();
+		paintPiece(); // settles where it stopped; it is board from here on
 		clearFullRows();
 		piece = [];
 		spawnPiece();
+	}
+
+	/** Clears the falling piece's cells, leaving only settled board behind. **/
+	function erasePiece():Void {
+		for (cell in piece) {
+			if (cell[0] >= 0 && cell[0] < COLS && cell[1] >= 0 && cell[1] < ROWS) {
+				cells[TETRIS_FACADE * COLS * ROWS + cell[1] * COLS + cell[0]] = false;
+			}
+		}
 	}
 
 	/** Whether every cell of the falling piece has empty space below it. **/
@@ -297,15 +313,17 @@ class FacadeLife {
 		return true;
 	}
 
-	/** Whether a cell holds *settled* board, ignoring the falling piece. **/
+	/**
+		Whether a cell holds settled board.
+
+		No longer has to exclude the falling piece's own cells: `stepTetris`
+		lifts the piece off the board before anything asks. That exclusion
+		was a workaround for the piece being painted in place, and it hid
+		the trail bug rather than preventing it.
+	**/
 	function isLocked(col:Int, row:Int):Bool {
 		if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
 			return true;
-		}
-		for (cell in piece) {
-			if (cell[0] == col && cell[1] == row) {
-				return false; // the piece itself is not board
-			}
 		}
 		return cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col];
 	}
@@ -328,7 +346,7 @@ class FacadeLife {
 		// Topped out: the new piece has nowhere to be. Wipe and start over,
 		// which is the losing this facade exists to do.
 		for (cell in spawned) {
-			if (isLockedIgnoringPiece(cell[0], cell[1])) {
+			if (isLocked(cell[0], cell[1])) {
 				for (index in 0...COLS * ROWS) {
 					cells[TETRIS_FACADE * COLS * ROWS + index] = false;
 				}
@@ -340,13 +358,6 @@ class FacadeLife {
 		paintPiece();
 	}
 
-	function isLockedIgnoringPiece(col:Int, row:Int):Bool {
-		if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
-			return true;
-		}
-		return cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col];
-	}
-
 	/** Draws the falling piece into the grid so the shader can see it. **/
 	function paintPiece():Void {
 		for (cell in piece) {
@@ -354,10 +365,6 @@ class FacadeLife {
 				cells[TETRIS_FACADE * COLS * ROWS + cell[1] * COLS + cell[0]] = true;
 			}
 		}
-	}
-
-	function lockPiece():Void {
-		paintPiece();
 	}
 
 	/** Removes every full row and drops what was above it. **/
