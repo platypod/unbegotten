@@ -12,6 +12,7 @@ import game.MeshBuilder;
 import geometry.CurvedSpace.ModelPoint;
 import geometry.HyperbolicProjection;
 import geometry.HyperbolicTiling;
+import graphics.Colours;
 import geometry.Isometry;
 
 /**
@@ -103,9 +104,39 @@ class SprawlBiome implements Biome {
 	/** Same first-pass value as the maze's — see `biomes.hub.HubBiome.GRAVITY`'s own doc for why each biome states its own. **/
 	static inline final GRAVITY:Float = 60;
 
-	static inline final FLOOR_COLOR:Int = 0x1B2A38;
-	static inline final COLUMN_COLOR:Int = 0x2E5C7A;
-	static inline final HOME_COLOR:Int = 0xFFB627;
+	/**
+		The floor is banded by ring parity, not painted one colour — this is
+		the **ring-counting instrument**, not decoration.
+
+		`world.md`'s own navigation algorithm for this space needs two
+		components, and radius is the one the geometry can answer directly: a
+		traveller moving outward crosses ring boundaries at a learnable,
+		predictable rate, so the boundaries have to be *visible* before any of
+		that is learnable at all. Alternating two base-ramp values across
+		`HyperbolicTiling.rings` turns the tiling into concentric bands the
+		player can count outward, which is the cheapest possible version of
+		the mechanism — no new geometry, no new data, just the ring number the
+		BFS already assigned every face.
+
+		Two values from the ramp rather than two hues, so this costs nothing
+		from `graphics.Colours`'s contrast budget: banding is everywhere, and
+		anything everywhere has to read by value.
+	**/
+	static inline final FLOOR_EVEN_COLOR:Int = Colours.SURFACE_BASE;
+
+	/** See `FLOOR_EVEN_COLOR`. **/
+	static inline final FLOOR_ODD_COLOR:Int = Colours.SURFACE_MID;
+
+	static inline final COLUMN_COLOR:Int = Colours.SURFACE_RAISED;
+
+	/** The way out — one of the very few things allowed a signal colour here. **/
+	static inline final HOME_COLOR:Int = Colours.SIGNAL_MARK;
+
+	/** Every Nth ring gets taller columns, so counting can be chunked instead of one-at-a-time — coarse milestones over the fine parity banding. **/
+	static inline final MILESTONE_RING:Int = 4;
+
+	/** How much taller a milestone ring's columns stand. **/
+	static inline final MILESTONE_HEIGHT_SCALE:Float = 1.9;
 
 	final tiling:HyperbolicTiling;
 	final space:HyperbolicSpace;
@@ -334,8 +365,10 @@ class SprawlBiome implements Biome {
 
 		var view = HyperbolicView.viewOf(player.pos, player.forward, CURVATURE_RADIUS);
 
-		var floorPoints:Array<h3d.Vector> = [];
-		var floorIdx = new hxd.IndexBuffer();
+		var floorEvenPoints:Array<h3d.Vector> = [];
+		var floorEvenIdx = new hxd.IndexBuffer();
+		var floorOddPoints:Array<h3d.Vector> = [];
+		var floorOddIdx = new hxd.IndexBuffer();
 		var columnPoints:Array<h3d.Vector> = [];
 		var columnIdx = new hxd.IndexBuffer();
 		var homePoints:Array<h3d.Vector> = [];
@@ -348,8 +381,9 @@ class SprawlBiome implements Biome {
 			}
 
 			var isHome = id == 0;
-			var points = isHome ? homePoints : floorPoints;
-			var idx = isHome ? homeIdx : floorIdx;
+			var evenRing = tiling.rings[id] % 2 == 0;
+			var points = isHome ? homePoints : (evenRing ? floorEvenPoints : floorOddPoints);
+			var idx = isHome ? homeIdx : (evenRing ? floorEvenIdx : floorOddIdx);
 
 			var corners = [
 				for (p in faceCorners[id])
@@ -362,21 +396,23 @@ class SprawlBiome implements Biome {
 
 			var base = columnBases[id];
 			if (base != null) {
-				addColumn(columnPoints, columnIdx, view, base);
+				var milestone = tiling.rings[id] > 0 && tiling.rings[id] % MILESTONE_RING == 0;
+				addColumn(columnPoints, columnIdx, view, base, milestone ? COLUMN_HEIGHT * MILESTONE_HEIGHT_SCALE : COLUMN_HEIGHT);
 			}
 		}
 
-		addMesh(container, floorPoints, floorIdx, FLOOR_COLOR);
+		addMesh(container, floorEvenPoints, floorEvenIdx, FLOOR_EVEN_COLOR);
+		addMesh(container, floorOddPoints, floorOddIdx, FLOOR_ODD_COLOR);
 		addMesh(container, columnPoints, columnIdx, COLUMN_COLOR);
 		addMesh(container, homePoints, homeIdx, HOME_COLOR);
 	}
 
 	/** One column: four side quads plus a cap, from precomputed hyperbolic base corners. **/
-	function addColumn(points:Array<h3d.Vector>, idx:hxd.IndexBuffer, view:Isometry, base:Array<ModelPoint>):Void {
+	function addColumn(points:Array<h3d.Vector>, idx:hxd.IndexBuffer, view:Isometry, base:Array<ModelPoint>, height:Float):Void {
 		var low = [for (p in base) HyperbolicProjection.toWorld(Isometry.apply(view, p), 0)];
 		var high = [
 			for (p in base)
-				HyperbolicProjection.toWorld(Isometry.apply(view, p), COLUMN_HEIGHT)
+				HyperbolicProjection.toWorld(Isometry.apply(view, p), height)
 		];
 
 		for (k in 0...4) {
