@@ -83,9 +83,9 @@ class TurnCollisionTest extends Test {
 
 	/** The rails are solid — the band has edges, and walking off them is not allowed. **/
 	function testTheRailsHoldThePlayerOn():Void {
-		Assert.isFalse(TurnCollision.isOpen(0, TurnModel.HALF_WIDTH), "the player can stand in the rail");
-		Assert.isFalse(TurnCollision.isOpen(0, -TurnModel.HALF_WIDTH), "the player can stand in the other rail");
-		Assert.isTrue(TurnCollision.isOpen(0, 0), "the band's own axis is not standable");
+		Assert.isFalse(TurnCollision.isOpen(0, TurnModel.HALF_WIDTH, false), "the player can stand in the rail");
+		Assert.isFalse(TurnCollision.isOpen(0, -TurnModel.HALF_WIDTH, false), "the player can stand in the other rail");
+		Assert.isTrue(TurnCollision.isOpen(0, 0, false), "the band's own axis is not standable");
 	}
 
 	/**
@@ -100,7 +100,7 @@ class TurnCollisionTest extends Test {
 			var passable = false;
 			var probe = -TurnModel.HALF_WIDTH;
 			while (probe <= TurnModel.HALF_WIDTH) {
-				if (TurnCollision.isOpen(along, probe)) {
+				if (TurnCollision.isOpen(along, probe, false)) {
 					passable = true;
 					break;
 				}
@@ -145,7 +145,7 @@ class TurnCollisionTest extends Test {
 		var player = playerAt(along - TurnModel.OBSTACLE_HALF_DEPTH - 6, across);
 		var before = player.pos.z;
 
-		TurnCollision.tryMove(player, new h3d.Vector(0.7071, 0, 0.7071), 4);
+		TurnCollision.tryMove(player, new h3d.Vector(0.7071, 0, 0.7071), 4, false);
 
 		Assert.floatEquals(along - TurnModel.OBSTACLE_HALF_DEPTH - 6, player.pos.x, EPSILON, "the player pushed into the obstacle");
 		Assert.isTrue(Math.abs(player.pos.z - before) > 1, "the sideways component was lost — the player stuck instead of sliding");

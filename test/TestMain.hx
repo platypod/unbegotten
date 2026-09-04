@@ -42,6 +42,7 @@ import entities.hourglass.HourglassModelTest;
 import entities.hourglass.HourglassTest;
 import entities.painting.PaintingModelTest;
 import entities.player.CameraTest;
+import biomes.turn.TurnGateTest;
 import entities.landmark.GlyphAlphabetTest;
 import entities.player.PlayerModelTest;
 import entities.registries.BiomesRegistryTest;
@@ -99,6 +100,7 @@ class TestMain {
 		runner.addCase(new MazeGeneratorTest());
 		runner.addCase(new MazeCarverTest());
 		runner.addCase(new MazeBraiderTest());
+		runner.addCase(new TurnGateTest());
 		runner.addCase(new GlyphAlphabetTest());
 		runner.addCase(new PlayerModelTest());
 		runner.addCase(new CameraTest());

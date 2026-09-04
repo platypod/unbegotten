@@ -66,6 +66,20 @@ class TurnBiome implements Biome {
 	/** Copies of the fundamental domain drawn each way. One is enough to fill the view at this period, and the next lap is visibly mirrored from where the player stands. **/
 	static inline final DRAWN_COPIES:Int = 1;
 
+	/**
+		How many identifications the player has crossed this visit — their
+		own handedness, and the only piece of state this space keeps.
+
+		Reset on entry rather than persisted, deliberately: `world.md`'s own
+		gain for this space is *a technique*, not a key, so the player
+		should have to produce the handedness they want each time rather
+		than arrive already holding it.
+	**/
+	var lift:Int = 0;
+
+	/** The gate's own geometry, shown and hidden as `lift` changes. Null until `build`. **/
+	var gate:Null<h3d.scene.Object> = null;
+
 	public function new() {}
 
 	public function id():String {
@@ -82,7 +96,11 @@ class TurnBiome implements Biome {
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
-		TurnMesh.build(parent, DRAWN_COPIES);
+		// Entering resets the lift: the gain here is a technique, not a key
+		// (see `lift`), so the gate is closed again on every visit.
+		lift = 0;
+		gate = TurnMesh.build(parent, DRAWN_COPIES);
+		refreshGate();
 	}
 
 	/**
@@ -116,7 +134,16 @@ class TurnBiome implements Biome {
 
 	/** Moves at this biome's own pace — see `SPEED_MULTIPLIER`. **/
 	public function tryMove(player:PlayerModel, direction:h3d.Vector, distance:Float):Void {
-		TurnCollision.tryMove(player, direction, distance * SPEED_MULTIPLIER);
+		lift += TurnCollision.tryMove(player, direction, distance * SPEED_MULTIPLIER, TurnModel.gateClosedOn(lift));
+		refreshGate();
+	}
+
+	/** Shows or hides the gate to match the lift the player is now on. **/
+	function refreshGate():Void {
+		var mesh = gate;
+		if (mesh != null) {
+			mesh.visible = TurnModel.gateClosedOn(lift);
+		}
 	}
 
 	/** Flat band, flat gravity — the rails and obstacles are walls, not terrain. **/

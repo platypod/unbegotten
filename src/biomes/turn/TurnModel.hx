@@ -71,6 +71,69 @@ class TurnModel {
 	/** How far an obstacle's centre may sit from the band's own axis — kept clear of the rails so there is always a way past on either side. **/
 	static inline final MAX_LATERAL_OFFSET:Float = HALF_WIDTH - OBSTACLE_HALF_WIDTH - 8;
 
+	/**
+		**The chirality gate** — the space's own mechanism, and the first
+		thing here that reads the player's handedness rather than merely
+		displaying it.
+
+		`world.md` asks for a passage whose openness depends on which lift
+		you are on, so that *the path you choose determines what arrives*.
+		This is that, in the smallest honest form: a barrier across the
+		middle of the band, solid on one lift and gone on the other. Walk a
+		lap and the glide puts you on the other lift, and the gate you could
+		not pass is open.
+
+		**Deliberately a shortcut and not a lock.** The band is wide and the
+		gate spans only its middle, so there is always a way around and the
+		player can never be trapped by a mechanic that has not been
+		playtested — which matters more here than usual, since this space's
+		own entry in `world.md` says the setup is "not yet sold" and the
+		exit is otherwise the only way out. A gate that costs you a detour
+		teaches the same rule as a gate that stops you, and fails safe.
+
+		Placed midway between two obstacles so it is met on the racing line
+		rather than tucked away: you are supposed to run into it on the
+		first lap, find it closed, and only later notice it is open — the
+		"oh, *I* changed" the space exists for.
+	**/
+	public static inline final GATE_ALONG:Float = 6 * OBSTACLE_SPACING - PERIOD / 2;
+
+	/** Half the gate's own span across the band — the middle third, leaving a clear lane at either rail. **/
+	public static inline final GATE_HALF_WIDTH:Float = HALF_WIDTH / 3;
+
+	/** Half the gate's own depth along the band. **/
+	public static inline final GATE_HALF_DEPTH:Float = 4;
+
+	public static inline final GATE_HEIGHT:Float = 16;
+
+	/**
+		Whether the gate is solid for a player on `lift`.
+
+		Closed on the even lift — the one the player arrives on — so the
+		first encounter is always the closed one. Meeting it open first
+		would teach nothing, since an open gate is indistinguishable from no
+		gate at all.
+		@param lift how many identifications the player has crossed.
+		@return true if the gate blocks them right now.
+	**/
+	public static function gateClosedOn(lift:Int):Bool {
+		// `% 2` on a negative lift yields -1 in Haxe, hence the explicit
+		// even test rather than `lift % 2 == 0` alone doing the work.
+		return lift % 2 == 0;
+	}
+
+	/**
+		Whether a world position is inside the gate's own slab, ignoring
+		whether it is currently solid.
+		@param x world x.
+		@param z world z.
+		@param clearance how far outside the slab still counts, for a body with width.
+		@return true if the position is within the gate.
+	**/
+	public static function withinGate(x:Float, z:Float, clearance:Float):Bool {
+		return Math.abs(x - GATE_ALONG) < GATE_HALF_DEPTH + clearance && Math.abs(z) < GATE_HALF_WIDTH + clearance;
+	}
+
 	/** The glide-reflection group this band is the quotient by. **/
 	public static final GROUP:DeckGroup = DeckGroups.mobiusBand(PERIOD);
 

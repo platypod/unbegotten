@@ -2,6 +2,7 @@ package biomes.turn;
 
 import game.BoxBatch;
 import geometry.Isometry;
+import graphics.Colours;
 
 /**
 	The band, its two rails, and the obstacles along it — drawn once per
@@ -71,8 +72,9 @@ class TurnMesh {
 		way.
 		@param parent the scene object to build under.
 		@param copies how many copies of the fundamental domain to draw on each side; one is enough to fill the view at this period.
+		@return the gate's own object, so the caller can show and hide it as the player's lift changes — it is the one piece of this band that is not static.
 	**/
-	public static function build(parent:h3d.scene.Object, copies:Int):Void {
+	public static function build(parent:h3d.scene.Object, copies:Int):h3d.scene.Object {
 		var floors = new BoxBatch(parent, FLOOR_COLOR);
 		var bright = new BoxBatch(parent, RAIL_BRIGHT_COLOR);
 		var dark = new BoxBatch(parent, RAIL_DARK_COLOR);
@@ -89,6 +91,30 @@ class TurnMesh {
 		bright.flush();
 		dark.flush();
 		obstacles.flush();
+
+		return buildGate(parent, copies);
+	}
+
+	/**
+		The chirality gate, in every drawn copy — solid-looking, and shown
+		or hidden by `TurnBiome` according to the lift the player is on.
+
+		Given a signal colour despite `graphics.Colours`'s own budget being
+		tight, because this is exactly what that tier is for: it is the one
+		thing in this space that answers yes or no to the player, and the
+		whole mechanism depends on its state being readable from far enough
+		back to plan a lane at speed.
+	**/
+	static function buildGate(parent:h3d.scene.Object, copies:Int):h3d.scene.Object {
+		var root = new h3d.scene.Object(parent);
+		var slabs = new BoxBatch(root, Colours.SIGNAL_DENY);
+		for (copy in -copies...copies + 1) {
+			var placement = copyTransform(copy);
+			var centre = Isometry.apply(placement, {x: TurnModel.GATE_ALONG, y: 0.0, z: 1.0});
+			slabs.add(centre.x, centre.y, TurnModel.GATE_HALF_DEPTH, TurnModel.GATE_HALF_WIDTH, 0, TurnModel.GATE_HEIGHT);
+		}
+		slabs.flush();
+		return root;
 	}
 
 	/**

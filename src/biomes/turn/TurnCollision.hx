@@ -22,23 +22,25 @@ class TurnCollision {
 		@param player the player to move.
 		@param direction unit tangent to move along.
 		@param distance how far to move.
+		@param gateClosed whether the chirality gate is solid for the player's current lift (see `TurnModel.gateClosedOn`).
+		@return how many identifications this move crossed — `1` for a lap seam, `0` otherwise. The caller uses it to keep the lift count, which is what decides `gateClosed` next time.
 	**/
-	public static function tryMove(player:PlayerModel, direction:h3d.Vector, distance:Float):Void {
+	public static function tryMove(player:PlayerModel, direction:h3d.Vector, distance:Float, gateClosed:Bool):Int {
 		var from = player.pos;
 		var step = direction.scaled(distance);
 
 		var x = from.x;
 		var z = from.z;
 
-		if (isOpen(from.x + step.x, z)) {
+		if (isOpen(from.x + step.x, z, gateClosed)) {
 			x = from.x + step.x;
 		}
-		if (isOpen(x, from.z + step.z)) {
+		if (isOpen(x, from.z + step.z, gateClosed)) {
 			z = from.z + step.z;
 		}
 
 		player.pos = new h3d.Vector(x, from.y, z);
-		wrapIfNeeded(player);
+		return wrapIfNeeded(player) ? 1 : 0;
 	}
 
 	/**
@@ -62,11 +64,12 @@ class TurnCollision {
 		facing a full period away and leave `forward` no longer a unit
 		vector.
 		@param player the player to wrap.
+		@return true if an identification was applied — i.e. the player just changed lift, and with it their own handedness.
 	**/
-	public static function wrapIfNeeded(player:PlayerModel):Void {
+	public static function wrapIfNeeded(player:PlayerModel):Bool {
 		var direction = TurnModel.wrapDirection(player.pos);
 		if (direction == 0) {
-			return;
+			return false;
 		}
 		var identification = direction > 0 ? TurnModel.glideBack() : TurnModel.glide();
 
@@ -75,6 +78,7 @@ class TurnCollision {
 
 		player.pos = TurnModel.toWorld(moved, player.pos.y);
 		player.forward = new h3d.Vector(faced.x, player.forward.y, faced.y);
+		return true;
 	}
 
 	/**
@@ -89,10 +93,15 @@ class TurnCollision {
 		spacing in from it, so nothing straddles the boundary.
 		@param x world x.
 		@param z world z.
+		@param gateClosed whether the chirality gate is solid right now.
 		@return true if the player may stand there.
 	**/
-	public static function isOpen(x:Float, z:Float):Bool {
+	public static function isOpen(x:Float, z:Float, gateClosed:Bool):Bool {
 		if (Math.abs(z) > TurnModel.HALF_WIDTH - PLAYER_RADIUS) {
+			return false;
+		}
+
+		if (gateClosed && TurnModel.withinGate(x, z, PLAYER_RADIUS)) {
 			return false;
 		}
 
