@@ -45,12 +45,6 @@ package graphics.shaders;
 	everything glows is a Christmas tree and has no depth.
 **/
 class CityFacade extends hxsl.Shader {
-	/** World units per window cell, including its gutter. **/
-	public static inline final DEFAULT_WINDOW_SIZE:Float = 3.4;
-
-	/** Fraction of windows that are lit at all. **/
-	public static inline final DEFAULT_LIT_RATE:Float = 0.34;
-
 	/** Fraction of windows that are lit *and* saturated. See the class doc on why this is small. **/
 	public static inline final DEFAULT_NEON_RATE:Float = 0.025;
 
@@ -72,8 +66,27 @@ class CityFacade extends hxsl.Shader {
 		@param var fogEnd:Float;
 		@param var tileSize:Float;
 		@param var windowSize:Float;
-		@param var litRate:Float;
 		@param var neonRate:Float;
+		@param var lifeMap:Sampler2D;
+		@param var plotSize:Float;
+		@param var facadeCols:Float;
+		@param var facadeRows:Float;
+		@param var totalFacades:Float;
+		@param var plotsPerTile:Float;
+		/**
+			Which facade this instance reads, or `-1` to read the one its
+			own plot implies.
+
+			The escape hatch for the anomaly, and the reason it is a
+			parameter rather than something derived: everything else in this
+			shader is deliberately blind to which tile it is in, which is
+			what guarantees tiles look identical. A building that ran a
+			*different* simulation because of its tile would need that
+			knowledge and would break the guarantee for every other
+			building too. The deformed building is already drawn as its own
+			object with its own shader instance, so it can simply be told.
+		**/
+		@param var facadeOverride:Float;
 		var transformedPosition:Vec3;
 		var output:{
 			var color:Vec4;
@@ -103,7 +116,17 @@ class CityFacade extends hxsl.Shader {
 			// spanning the building rather than as a grid.
 			var along = mix(localX, localZ, facingX);
 
-			var cell = vec2(floor(along / windowSize), floor(transformedPosition.y / windowSize));
+			// Which plot this facade belongs to, and therefore which of the
+			// 36 simulations it shows. Both indices come from the tile-local
+			// position, so they are the same in every tile by construction.
+			var plotX = floor(localX / plotSize);
+			var plotZ = floor(localZ / plotSize);
+			var facade = plotZ * plotsPerTile + plotX;
+			facade = mix(facade, facadeOverride, step(0.0, facadeOverride));
+
+			// Cell within this plot's own facade grid.
+			var alongInPlot = along - plotSize * floor(along / plotSize);
+			var cell = vec2(floor(alongInPlot / windowSize), floor(transformedPosition.y / windowSize));
 			var within = vec2(fract(along / windowSize), fract(transformedPosition.y / windowSize));
 
 			// A gutter around each pane, so windows read as separate units
@@ -113,8 +136,12 @@ class CityFacade extends hxsl.Shader {
 			// where a street-level city has doors and shopfronts instead.
 			var glazed = pane * (1.0 - facingUp) * step(windowSize, transformedPosition.y);
 
-			var roll = hash(cell, 0.0);
-			var lit = step(1.0 - litRate, roll);
+			// Lit means *alive*, read straight out of the simulation — see
+			// `biomes.repeat.FacadeLife`. The grids are stacked vertically
+			// into one strip, so a facade is a band of `facadeRows` rows.
+			var u = (cell.x + 0.5) / facadeCols;
+			var v = (facade * facadeRows + cell.y + 0.5) / (facadeRows * totalFacades);
+			var lit = step(0.5, lifeMap.get(vec2(u, v)).r);
 			var neon = step(1.0 - neonRate, hash(cell, 37.0)) * lit;
 
 			// Unlit panes sit *below* the wall value, so a dark tower still
@@ -141,9 +168,11 @@ class CityFacade extends hxsl.Shader {
 		@param fogStart world distance at which fading begins.
 		@param fogEnd world distance at which geometry is fully faded out.
 		@param tileSize the Repeat's own tile period, which makes the window pattern identical in every tile.
+		@param lifeMap the packed facade simulations — see `biomes.repeat.FacadeLife`.
+		@param facadeOverride which facade to read regardless of position, or `-1` to use the one this building's own plot implies. Only the anomaly passes anything else.
 	**/
 	public function new(faceEastWest:Int, faceNorthSouth:Int, faceTop:Int, windowDark:Int, windowLit:Int, windowNeon:Int, fogColor:Int, fogStart:Float,
-			fogEnd:Float, tileSize:Float) {
+			fogEnd:Float, tileSize:Float, lifeMap:h3d.mat.Texture, facadeOverride:Float = -1) {
 		super();
 		this.faceEastWest.setColor(faceEastWest);
 		this.faceNorthSouth.setColor(faceNorthSouth);
@@ -155,8 +184,14 @@ class CityFacade extends hxsl.Shader {
 		this.fogStart = fogStart;
 		this.fogEnd = fogEnd;
 		this.tileSize = tileSize;
-		this.windowSize = DEFAULT_WINDOW_SIZE;
-		this.litRate = DEFAULT_LIT_RATE;
+		this.lifeMap = lifeMap;
+		this.facadeOverride = facadeOverride;
+		this.windowSize = biomes.repeat.FacadeLife.WINDOW_SIZE;
+		this.plotSize = biomes.repeat.RepeatModel.PLOT_SIZE;
+		this.facadeCols = biomes.repeat.FacadeLife.COLS;
+		this.facadeRows = biomes.repeat.FacadeLife.ROWS;
+		this.totalFacades = biomes.repeat.FacadeLife.TOTAL_FACADES;
+		this.plotsPerTile = biomes.repeat.RepeatModel.PLOTS_PER_TILE;
 		this.neonRate = DEFAULT_NEON_RATE;
 	}
 }

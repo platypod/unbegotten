@@ -126,6 +126,9 @@ class RepeatModel {
 		return roll < 0.45 ? 1 : (roll < 0.85 ? 2 : 3);
 	}
 
+	/** Fraction of anomalies that glitch rather than lean. The rarer of the two, being the harder to find. **/
+	static inline final GLITCH_SHARE:Float = 0.3;
+
 	/** Least a deformed building leans. See `anomalyLean`. **/
 	public static inline final ANOMALY_MIN_LEAN:Float = 0.035;
 
@@ -272,6 +275,25 @@ class RepeatModel {
 		return noise(i, j, 7) * Math.PI * 2;
 	}
 
+	/**
+		Which kind of wrong this tile's anomaly is.
+
+		Two kinds, appealing to different senses, which is the point of
+		having two: a `Leaning` building is spotted by *comparing shapes*
+		against the tile you just left, and a `Glitching` one only by
+		*watching* — its facade runs a Life that cannot settle (see
+		`FacadeLife.GLITCH_FACADE`), so a player who never stands still will
+		walk straight past it. It stands perfectly upright on purpose;
+		giving it a lean too would let the harder tell be solved by the
+		easier one.
+		@param i the tile's own x coordinate.
+		@param j the tile's own z coordinate.
+		@return the anomaly's kind.
+	**/
+	public static function anomalyKind(i:Int, j:Int):AnomalyKind {
+		return noise(i, j, 8) < GLITCH_SHARE ? Glitching : Leaning;
+	}
+
 	/** The world position of a plot's own centre, in the given tile. **/
 	public static function plotCentre(i:Int, j:Int, plotX:Int, plotZ:Int):{x:Float, z:Float} {
 		var origin = tileOrigin(i, j);
@@ -303,4 +325,13 @@ class RepeatModel {
 		h = h ^ (h >> 16);
 		return (h & 0x7FFFFFFF) / 2147483648.0;
 	}
+}
+
+/** How a tile's anomalous building is wrong — see `RepeatModel.anomalyKind`. **/
+enum AnomalyKind {
+	/** Out of true: found by comparing its shape against a tile you remember. **/
+	Leaning;
+
+	/** Running a Life that cannot settle: found only by watching it. **/
+	Glitching;
 }

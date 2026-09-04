@@ -59,6 +59,18 @@ class RepeatBiome implements Biome {
 	static inline final BUILD_RADIUS:Int = 2;
 
 	/**
+		Seconds per Life generation.
+
+		Slow, and that is the whole tuning: this is a skyline settling over
+		minutes, not a screensaver. Fast enough that a player who stops and
+		looks sees a pane change within a few seconds — which is the only
+		thing that makes the city read as a simulation rather than as a
+		texture — and slow enough that it is calm in peripheral vision while
+		walking.
+	**/
+	static inline final GENERATION_SECONDS:Float = 1.6;
+
+	/**
 		How close the player must get to the anomalous building to put it
 		right.
 
@@ -90,6 +102,25 @@ class RepeatBiome implements Biome {
 
 	/** The assembled mark, once every plot has been found. Null until then. **/
 	var markMesh:Null<h3d.scene.Object> = null;
+
+	/**
+		The facade simulations every building in the city reads its windows
+		from — see `FacadeLife` for why an unbounded city costs 37 grids.
+	**/
+	final life:FacadeLife = new FacadeLife();
+
+	/**
+		`life`'s state as a texture the shader can sample.
+
+		One texture shared by every `graphics.shaders.CityFacade` instance,
+		re-uploaded in place each generation rather than rebuilt — so a step
+		costs one upload and no geometry work at all, however much city is
+		on screen.
+	**/
+	var lifeMap:Null<h3d.mat.Texture> = null;
+
+	/** Seconds left until the next generation. **/
+	var untilStep:Float = GENERATION_SECONDS;
 
 	/** Which tiles have had their fragment taken. Keyed by `tileKey`, since the plane is unbounded and an array would have to be. **/
 	final collected:Map<String, Bool> = new Map();
@@ -188,6 +219,19 @@ class RepeatBiome implements Biome {
 		@param dt unused — nothing here advances with time, which is the point of a deterministic city.
 	**/
 	public function tick(player:PlayerModel, dt:Float):Void {
+		untilStep -= dt;
+		if (untilStep <= 0) {
+			untilStep += GENERATION_SECONDS;
+			life.step();
+			var texture = lifeMap;
+			if (texture != null) {
+				// In place: the geometry never changes, only which panes are
+				// lit, so a generation costs one upload no matter how much
+				// city is currently built.
+				uploadLife(texture);
+			}
+		}
+
 		collectFragmentNear(player);
 
 		var tile = RepeatModel.tileIndexAt(player.pos.x, player.pos.z);
@@ -266,13 +310,47 @@ class RepeatBiome implements Biome {
 		markMesh = root;
 	}
 
+	/**
+		The Life texture, allocated on first use and re-uploaded every
+		generation. Nearest-filtered: a cell is a cell, and interpolating
+		between two of them would smear the windows into each other.
+	**/
+	function lifeTexture():h3d.mat.Texture {
+		var existing = lifeMap;
+		if (existing != null) {
+			return existing;
+		}
+		var created = new h3d.mat.Texture(FacadeLife.COLS, FacadeLife.ROWS * FacadeLife.TOTAL_FACADES, [Dynamic]);
+		created.filter = Nearest;
+		created.wrap = Clamp;
+		lifeMap = created;
+		uploadLife(created);
+		return created;
+	}
+
+	/** Writes `life`'s current generation into `texture`. **/
+	function uploadLife(texture:h3d.mat.Texture):Void {
+		var height = FacadeLife.ROWS * FacadeLife.TOTAL_FACADES;
+		var pixels = hxd.Pixels.alloc(FacadeLife.COLS, height, RGBA);
+		for (facade in 0...FacadeLife.TOTAL_FACADES) {
+			for (row in 0...FacadeLife.ROWS) {
+				for (col in 0...FacadeLife.COLS) {
+					var value = life.isAlive(facade, col, row) ? 0xFFFFFFFF : 0xFF000000;
+					pixels.setPixel(col, facade * FacadeLife.ROWS + row, value);
+				}
+			}
+		}
+		texture.uploadPixels(pixels);
+		pixels.dispose();
+	}
+
 	function rebuild(around:{i:Int, j:Int}):Void {
 		var container = world;
 		if (container == null) {
 			return; // not built yet — nothing to draw into
 		}
 		container.removeChildren();
-		RepeatMesh.build(container, around, BUILD_RADIUS, collected, markPlotsFound);
+		RepeatMesh.build(container, around, BUILD_RADIUS, collected, markPlotsFound, lifeTexture());
 		builtAround = around;
 	}
 
