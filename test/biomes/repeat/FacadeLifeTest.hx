@@ -251,4 +251,86 @@ class FacadeLifeTest extends Test {
 		}
 		Assert.isTrue(drops > 0, "the Tetris board never lost anything — it neither clears rows nor tops out");
 	}
+
+	// --- The two anomaly facades added with the difficulty tiers.
+
+	function testTheStoppedFacadeIsGenuinelySettledNotMerelyFrozen():Void {
+		// A facade that only *looks* stopped because nothing advances it
+		// would be a lie of the same kind the static window hash was. These
+		// are blocks: step them and they would not move.
+		var life = new FacadeLife();
+		var before = aliveIn(life, FacadeLife.STOPPED_FACADE);
+		Assert.isTrue(before > 0, "the stopped facade is empty, so it reads as a dark building rather than a settled one");
+
+		// Every live cell should be part of a 2x2 block — the still life.
+		for (row in 0...FacadeLife.ROWS) {
+			for (col in 0...FacadeLife.COLS) {
+				if (!life.isAlive(FacadeLife.STOPPED_FACADE, col, row)) {
+					continue;
+				}
+				var neighbours = 0;
+				for (dr in -1...2) {
+					for (dc in -1...2) {
+						if ((dr != 0 || dc != 0) && life.isAlive(FacadeLife.STOPPED_FACADE, col + dc, row + dr)) {
+							neighbours++;
+						}
+					}
+				}
+				Assert.equals(3, neighbours, 'a cell at ($col, $row) has $neighbours neighbours, so it is not part of a block and would change if stepped');
+			}
+		}
+	}
+
+	function testTheStoppedFacadeNeverMoves():Void {
+		var life = new FacadeLife();
+		var before = snapshot(life, FacadeLife.STOPPED_FACADE);
+		for (_ in 0...40) {
+			life.step();
+		}
+		Assert.same(before, snapshot(life, FacadeLife.STOPPED_FACADE));
+	}
+
+	function testThePhaseBandIsItsTwinRunningLate():Void {
+		// The load-bearing property of the whole `Phased` anomaly: it has to
+		// be the *same* city a moment ago, not another one. Checked by
+		// running past the lag and comparing the band against a second
+		// simulation stopped `PHASE_LAG` generations earlier.
+		var ahead = new FacadeLife();
+		var behind = new FacadeLife();
+		var total = FacadeLife.PHASE_LAG + 6;
+		for (_ in 0...total) {
+			ahead.step();
+		}
+		for (_ in 0...(total - FacadeLife.PHASE_LAG)) {
+			behind.step();
+		}
+
+		for (plot in 0...FacadeLife.FACADE_COUNT) {
+			var phased = FacadeLife.PHASE_BASE + plot;
+			Assert.same(snapshot(behind, plot), snapshot(ahead, phased), 'phase band facade $plot is not its twin running late');
+		}
+	}
+
+	function testThePhaseBandDiffersFromTheLiveOne():Void {
+		// If they matched, the anomaly would be invisible.
+		var life = new FacadeLife();
+		for (_ in 0...(FacadeLife.PHASE_LAG + 6)) {
+			life.step();
+		}
+		var differing = 0;
+		for (plot in 0...FacadeLife.FACADE_COUNT) {
+			if (snapshot(life, plot).join("") != snapshot(life, FacadeLife.PHASE_BASE + plot).join("")) {
+				differing++;
+			}
+		}
+		Assert.isTrue(differing > FacadeLife.FACADE_COUNT / 2, 'only $differing facades differ from their lagged twin');
+	}
+
+	function snapshot(life:FacadeLife, facade:Int):Array<Bool> {
+		return [
+			for (row in 0...FacadeLife.ROWS)
+				for (col in 0...FacadeLife.COLS)
+					life.isAlive(facade, col, row)
+		];
+	}
 }

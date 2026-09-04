@@ -126,18 +126,11 @@ class RepeatModel {
 		return roll < 0.45 ? 1 : (roll < 0.85 ? 2 : 3);
 	}
 
-	/**
-		Fraction of anomalies that are the Tetris building.
+	/** Tiles within this Chebyshev ring of the origin carry only the easiest anomalies. **/
+	static inline final NEAR_RING:Int = 2;
 
-		The **easy** one, and deliberately so: a player who finds one obvious
-		anomaly now knows there is a search to lead, which is what makes the
-		other two findable at all. It teaches that anomalies exist; they
-		teach what looking closely is worth.
-	**/
-	static inline final PLAYING_SHARE:Float = 0.18;
-
-	/** Fraction of anomalies that glitch rather than lean. **/
-	static inline final GLITCH_SHARE:Float = 0.28;
+	/** Beyond `NEAR_RING` and within this one, the middle tier. Past it, everything. **/
+	static inline final MID_RING:Int = 6;
 
 	/** Least a deformed building leans. See `anomalyLean`. **/
 	public static inline final ANOMALY_MIN_LEAN:Float = 0.035;
@@ -266,6 +259,21 @@ class RepeatModel {
 	}
 
 	/**
+		The wrong number of tiers for a `Misshapen` building.
+
+		One step off its true stack, in whichever direction stays in range —
+		a setback too many or too few. Deliberately not a height or footprint
+		change: those alter where the building meets the ground, which reads
+		as a different building rather than as the *same* building built
+		wrong, and the space is about sameness broken rather than variety.
+		@param trueTiers what the plot's building should have.
+		@return what this one shows instead.
+	**/
+	public static function misshapenTiers(trueTiers:Int):Int {
+		return trueTiers > 1 ? trueTiers - 1 : trueTiers + 1;
+	}
+
+	/**
 		How far out of true a tile's anomalous building leans, in radians.
 
 		Small on purpose, and the hardest number here to get right: large
@@ -303,11 +311,50 @@ class RepeatModel {
 		@return the anomaly's kind.
 	**/
 	public static function anomalyKind(i:Int, j:Int):AnomalyKind {
-		var roll = noise(i, j, 8);
-		if (roll < PLAYING_SHARE) {
-			return Playing;
+		var pool = anomalyPool(anomalyTierAt(i, j));
+		return pool[Std.int(noise(i, j, 8) * pool.length) % pool.length];
+	}
+
+	/**
+		How far out a tile is, in difficulty tiers.
+
+		**The city teaches you to see.** Near the way out the anomalies are
+		unmissable, and the further you walk the more they ask of you — so
+		"how far did you get" becomes a real measure of skill rather than of
+		patience, and a player is never asked to spot a phase shift before
+		they know anomalies exist at all.
+
+		Chebyshev distance rather than Euclidean, because tiles are square
+		and a ring of constant difficulty should be the square the player
+		actually walks, not a circle cutting corners off it.
+		@param i the tile's own x coordinate.
+		@param j the tile's own z coordinate.
+		@return `0` nearest the origin, rising outward.
+	**/
+	public static function anomalyTierAt(i:Int, j:Int):Int {
+		var ring = Std.int(Math.max(Math.abs(i), Math.abs(j)));
+		if (ring <= NEAR_RING) {
+			return 0;
 		}
-		return roll < PLAYING_SHARE + GLITCH_SHARE ? Glitching : Leaning;
+		return ring <= MID_RING ? 1 : 2;
+	}
+
+	/**
+		Which kinds can occur at a tier. Cumulative on purpose: the far city
+		still holds easy anomalies, so the difficulty is in what you *might*
+		meet rather than in a guarantee, and a player who walks a long way
+		is not denied the satisfying obvious ones.
+		@param tier from `anomalyTierAt`.
+		@return the kinds available there.
+	**/
+	public static function anomalyPool(tier:Int):Array<AnomalyKind> {
+		if (tier <= 0) {
+			return [Playing, Misshapen];
+		}
+		if (tier == 1) {
+			return [Playing, Misshapen, Leaning, Glitching];
+		}
+		return [Misshapen, Leaning, Glitching, Stopped, Phased];
 	}
 
 	/** The world position of a plot's own centre, in the given tile. **/
@@ -353,4 +400,13 @@ enum AnomalyKind {
 
 	/** Not running Life at all — see `FacadeLife.TETRIS_FACADE`. The one you are meant to find first. **/
 	Playing;
+
+	/** The wrong shape: a setback too many or too few. The only kind readable at distance, and the only one that needs no watching at all. **/
+	Misshapen;
+
+	/** Settled and motionless while its counterparts churn — see `FacadeLife.STOPPED_FACADE`. **/
+	Stopped;
+
+	/** The right pattern, running late — see `FacadeLife.PHASE_BASE`. Wrong only against a tile you remember. **/
+	Phased;
 }

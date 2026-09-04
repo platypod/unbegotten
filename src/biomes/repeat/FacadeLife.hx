@@ -77,8 +77,42 @@ class FacadeLife {
 	**/
 	public static inline final TETRIS_FACADE:Int = FACADE_COUNT + 1;
 
-	/** Total grids: one per plot, plus the glitch and the Tetris. **/
-	public static inline final TOTAL_FACADES:Int = FACADE_COUNT + 2;
+	/**
+		The facade that has **stopped**: seeded with still lifes and never
+		stepped, so it stands perfectly motionless while every counterpart
+		churns.
+
+		Thread 2 stated in architecture — "the terrain is made of the ones
+		who stopped" — and here is one, mid-city, that did. Distinct from
+		`GLITCH_FACADE` in the way that matters: that one flails, this one is
+		*still*, and stillness in a city that moves is its own kind of loud.
+	**/
+	public static inline final STOPPED_FACADE:Int = FACADE_COUNT + 2;
+
+	/**
+		Where the **phase band** starts: 36 more facades, seeded identically
+		to the ordinary ones and stepped `PHASE_LAG` generations later, so
+		facade `PHASE_BASE + p` is always exactly what facade `p` was a
+		while ago.
+
+		This is the most on-thesis anomaly in the set. The space's own claim
+		is *same seed, same rule, same future — unless something
+		intervened*, and a building out of phase is that sentence broken in
+		the smallest way it can be broken. Nothing about it is wrong in
+		isolation; it is only wrong *relative to a tile you remember*, which
+		is the entire mechanic rather than a decoration on top of it.
+
+		Running a second lagged copy rather than keeping a history buffer:
+		the simulation is deterministic, so a copy that starts late *is* the
+		past, exactly, for free.
+	**/
+	public static inline final PHASE_BASE:Int = FACADE_COUNT + 3;
+
+	/** How many generations the phase band lags. Long enough that the difference is a real memory test, short enough to still be the same pattern. **/
+	public static inline final PHASE_LAG:Int = 9;
+
+	/** Total grids: one per plot, the glitch, the Tetris, the stopped one, and the lagged copy of every plot. **/
+	public static inline final TOTAL_FACADES:Int = FACADE_COUNT * 2 + 3;
 
 	/**
 		The seven tetrominoes, as `[col, row]` offsets from the spawn corner
@@ -140,7 +174,24 @@ class FacadeLife {
 		if (facade == GLITCH_FACADE) {
 			return Glitched;
 		}
-		return facade == TETRIS_FACADE ? Tetris : Conway;
+		if (facade == TETRIS_FACADE) {
+			return Tetris;
+		}
+		if (facade == STOPPED_FACADE) {
+			return Stopped;
+		}
+		return facade >= PHASE_BASE ? Phased : Conway;
+	}
+
+	/**
+		The lagged twin of a plot's own facade — what it looked like
+		`PHASE_LAG` generations ago.
+		@param plotX plot column within the tile.
+		@param plotZ plot row within the tile.
+		@return that plot's phase-band facade index.
+	**/
+	public static function phasedFacadeOf(plotX:Int, plotZ:Int):Int {
+		return PHASE_BASE + facadeOf(plotX, plotZ);
 	}
 
 	/**
@@ -164,8 +215,16 @@ class FacadeLife {
 	public function step():Void {
 		var next = cells.copy();
 		for (facade in 0...TOTAL_FACADES) {
-			if (ruleOf(facade) != Conway) {
-				continue; // stepped below, by its own rule
+			var rule = ruleOf(facade);
+			// `Stopped` never steps — that is the whole of it. `Phased` runs
+			// the same rule as `Conway`, just starting `PHASE_LAG`
+			// generations later, so it is stepped here too but only once the
+			// lag has elapsed.
+			if (rule == Stopped || rule == Glitched || rule == Tetris) {
+				continue;
+			}
+			if (rule == Phased && generation < PHASE_LAG) {
+				continue;
 			}
 			for (row in 0...ROWS) {
 				for (col in 0...COLS) {
@@ -340,11 +399,42 @@ class FacadeLife {
 
 	function seed():Void {
 		for (facade in 0...TOTAL_FACADES) {
+			// The phase band is seeded from its *twin*, not from itself:
+			// being the same city a moment later is the entire point, and a
+			// band with its own seed would just be 36 more unrelated
+			// buildings.
+			var seedFrom = facade >= PHASE_BASE ? facade - PHASE_BASE : facade;
 			for (row in 0...ROWS) {
 				for (col in 0...COLS) {
-					cells[facade * COLS * ROWS + row * COLS + col] = noise(facade * COLS + col, row) < SEED_DENSITY;
+					cells[facade * COLS * ROWS + row * COLS + col] = noise(seedFrom * COLS + col, row) < SEED_DENSITY;
 				}
 			}
+		}
+		seedStopped();
+	}
+
+	/**
+		Fills `STOPPED_FACADE` with blocks — the canonical still life, so it
+		is genuinely settled rather than merely frozen: were it ever stepped,
+		it would not change. A facade that only *looks* stopped because
+		nothing advances it would be a lie of the same kind the static
+		window hash was.
+	**/
+	function seedStopped():Void {
+		for (index in 0...COLS * ROWS) {
+			cells[STOPPED_FACADE * COLS * ROWS + index] = false;
+		}
+		var row = 1;
+		while (row + 1 < ROWS - 1) {
+			var col = 1;
+			while (col + 1 < COLS - 1) {
+				cells[STOPPED_FACADE * COLS * ROWS + row * COLS + col] = true;
+				cells[STOPPED_FACADE * COLS * ROWS + row * COLS + col + 1] = true;
+				cells[STOPPED_FACADE * COLS * ROWS + (row + 1) * COLS + col] = true;
+				cells[STOPPED_FACADE * COLS * ROWS + (row + 1) * COLS + col + 1] = true;
+				col += 4;
+			}
+			row += 4;
 		}
 	}
 
@@ -372,4 +462,10 @@ enum FacadeRule {
 
 	/** Not Life at all: somebody changed the rule here. **/
 	Tetris;
+
+	/** Settled into still lifes and never stepped again — one of the ones who stopped. **/
+	Stopped;
+
+	/** The same rule and the same seed, running `FacadeLife.PHASE_LAG` generations late. **/
+	Phased;
 }

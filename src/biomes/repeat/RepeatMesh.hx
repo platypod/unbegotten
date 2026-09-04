@@ -193,16 +193,20 @@ class RepeatMesh {
 					// plot's ordinary Life. Two tells, two senses — see
 					// `RepeatModel.anomalyKind`.
 					var kind = RepeatModel.anomalyKind(i, j);
-					// Only the leaning one leans: the other two are found by
-					// what their windows are doing, and a lean would let that
-					// harder tell be solved by the easier one.
+					// Only the leaning one leans, and only the misshapen one
+					// is the wrong shape: each kind gets exactly one tell, or
+					// a hard one could be solved by noticing an easy one
+					// riding along with it.
 					var lean = kind == Leaning ? RepeatModel.anomalyLean(i, j) : 0.0;
+					var shownTiers = kind == Misshapen ? RepeatModel.misshapenTiers(tiers) : tiers;
 					var facade = switch (kind) {
-						case Leaning: -1.0;
+						case Leaning | Misshapen: -1.0;
 						case Glitching: FacadeLife.GLITCH_FACADE;
 						case Playing: FacadeLife.TETRIS_FACADE;
+						case Stopped: FacadeLife.STOPPED_FACADE;
+						case Phased: FacadeLife.phasedFacadeOf(plotX, plotZ);
 					};
-					addDeformedBuilding(parent, centre.x, centre.z, half, height, tiers, lean, RepeatModel.anomalyBearing(i, j), lifeMap, facade, 0);
+					addDeformedBuilding(parent, centre.x, centre.z, half, height, shownTiers, lean, RepeatModel.anomalyBearing(i, j), lifeMap, facade, 0);
 					continue;
 				}
 				addBuilding(buildings, centre.x, centre.z, half, height, tiers);
