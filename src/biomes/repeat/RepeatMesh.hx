@@ -181,15 +181,28 @@ class RepeatMesh {
 				var centre = RepeatModel.plotCentre(i, j, plotX, plotZ);
 				var height = RepeatModel.buildingHeight(plotX, plotZ);
 				var tiers = RepeatModel.tierCount(plotX, plotZ);
-				if (RepeatModel.isAnomalous(i, j, plotX, plotZ) && !collected.exists(RepeatBiome.tileKey(i, j))) {
+				if (RepeatModel.isAnomalous(i, j, plotX, plotZ) && collected.exists(RepeatBiome.tileKey(i, j))) {
+					// Identified: it stands straight again and its windows
+					// freeze into static noise — see `CityFacade.frozen`.
+					addDeformedBuilding(parent, centre.x, centre.z, half, height, tiers, 0, 0, lifeMap, -1, 1);
+					continue;
+				}
+				if (RepeatModel.isAnomalous(i, j, plotX, plotZ)) {
 					// A glitching anomaly stands upright and runs the broken
 					// simulation; a leaning one stands wrong and runs its own
 					// plot's ordinary Life. Two tells, two senses — see
 					// `RepeatModel.anomalyKind`.
-					var glitching = RepeatModel.anomalyKind(i, j) == Glitching;
-					var lean = glitching ? 0.0 : RepeatModel.anomalyLean(i, j);
-					var facade = glitching ? FacadeLife.GLITCH_FACADE : -1;
-					addDeformedBuilding(parent, centre.x, centre.z, half, height, tiers, lean, RepeatModel.anomalyBearing(i, j), lifeMap, facade);
+					var kind = RepeatModel.anomalyKind(i, j);
+					// Only the leaning one leans: the other two are found by
+					// what their windows are doing, and a lean would let that
+					// harder tell be solved by the easier one.
+					var lean = kind == Leaning ? RepeatModel.anomalyLean(i, j) : 0.0;
+					var facade = switch (kind) {
+						case Leaning: -1.0;
+						case Glitching: FacadeLife.GLITCH_FACADE;
+						case Playing: FacadeLife.TETRIS_FACADE;
+					};
+					addDeformedBuilding(parent, centre.x, centre.z, half, height, tiers, lean, RepeatModel.anomalyBearing(i, j), lifeMap, facade, 0);
 					continue;
 				}
 				addBuilding(buildings, centre.x, centre.z, half, height, tiers);
@@ -214,7 +227,7 @@ class RepeatMesh {
 		without something to hold it against.
 	**/
 	static function addDeformedBuilding(parent:h3d.scene.Object, x:Float, z:Float, half:Float, height:Float, tiers:Int, lean:Float, bearing:Float,
-			lifeMap:h3d.mat.Texture, facade:Float):Void {
+			lifeMap:h3d.mat.Texture, facade:Float, frozen:Float):Void {
 		var pivot = new h3d.scene.Object(parent);
 		pivot.x = x;
 		pivot.z = z;
@@ -222,7 +235,7 @@ class RepeatMesh {
 
 		var batch = new BoxBatch(pivot, FACE_EAST_WEST,
 			() -> new CityFacade(FACE_EAST_WEST, FACE_NORTH_SOUTH, FACE_TOP, WINDOW_DARK, WINDOW_LIT, WINDOW_NEON, SKY_COLOR, FOG_START, FOG_END,
-				RepeatModel.TILE_SIZE, lifeMap, facade));
+				RepeatModel.TILE_SIZE, lifeMap, facade, frozen));
 		addBuilding(batch, 0, 0, half, height, tiers);
 		batch.flush();
 	}

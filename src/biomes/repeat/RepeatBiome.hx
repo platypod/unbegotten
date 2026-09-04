@@ -82,6 +82,9 @@ class RepeatBiome implements Biome {
 	**/
 	static inline final ANOMALY_REACH:Float = 20.0;
 
+	/** How nearly the player must be facing the building to identify it — `cos` of the half-angle, so this is a generous ~50 degrees either side rather than a crosshair test. **/
+	static inline final FACING_TOLERANCE:Float = 0.64;
+
 	/** The assembled mark's own pillars, as a fraction of a building's footprint — slimmer than the city, so it reads as placed rather than as more architecture. **/
 	static inline final MARK_FOOTPRINT:Float = 0.45;
 
@@ -232,43 +235,12 @@ class RepeatBiome implements Biome {
 			}
 		}
 
-		collectFragmentNear(player);
-
 		var tile = RepeatModel.tileIndexAt(player.pos.x, player.pos.z);
 		var around = builtAround;
 		if (around != null && around.i == tile.i && around.j == tile.j) {
 			return;
 		}
 		rebuild(tile);
-	}
-
-	/**
-		Takes the fragment in the player's own tile, if they have reached
-		it — the moment the design calls "recognising the difference and
-		reaching the new ground are the same act".
-	**/
-	function collectFragmentNear(player:PlayerModel):Void {
-		var tile = RepeatModel.tileIndexAt(player.pos.x, player.pos.z);
-		var key = tileKey(tile.i, tile.j);
-		if (collected.exists(key)) {
-			return;
-		}
-		var divergence = RepeatModel.divergenceOf(tile.i, tile.j);
-		if (divergence == null) {
-			return;
-		}
-
-		var at = RepeatModel.plotCentre(tile.i, tile.j, divergence.plotX, divergence.plotZ);
-		var dx = player.pos.x - at.x;
-		var dz = player.pos.z - at.z;
-		if (Math.sqrt(dx * dx + dz * dz) > ANOMALY_REACH) {
-			return;
-		}
-
-		collected.set(key, true);
-		markPlotsFound.set('${divergence.plotX},${divergence.plotZ}', true);
-		rebuild(tile); // the fragment has to actually disappear
-		revealMarkIfComplete(player);
 	}
 
 	/** How many of the mark's own plots the player has found so far. **/
@@ -354,8 +326,53 @@ class RepeatBiome implements Biome {
 		builtAround = around;
 	}
 
-	/** Nothing to interact with yet — see `biomes.common.Biome.interact`'s own doc. **/
-	public function interact(player:PlayerModel):Void {}
+	/**
+		Identifies the anomalous building the player is standing at and
+		looking at — bound to a left click (and to E, which is the same
+		verb) by `GameLoop`.
+
+		**Deliberately not automatic on proximity, which is what it used to
+		be.** Walking past used to be enough, so the player never had to
+		commit to an answer and could collect the whole city by touring it.
+		Requiring the click makes identifying a *claim*: you have decided
+		this is the wrong building, and you are saying so. Getting it wrong
+		costs nothing but a click, which is the right price — the puzzle is
+		noticing, not being punished.
+	**/
+	public function interact(player:PlayerModel):Void {
+		var tile = RepeatModel.tileIndexAt(player.pos.x, player.pos.z);
+		var key = tileKey(tile.i, tile.j);
+		if (collected.exists(key)) {
+			return;
+		}
+		var divergence = RepeatModel.divergenceOf(tile.i, tile.j);
+		if (divergence == null) {
+			return;
+		}
+
+		var at = RepeatModel.plotCentre(tile.i, tile.j, divergence.plotX, divergence.plotZ);
+		var dx = at.x - player.pos.x;
+		var dz = at.z - player.pos.z;
+		if (Math.sqrt(dx * dx + dz * dz) > ANOMALY_REACH) {
+			return;
+		}
+
+		// And actually looking at it. Without this, a click anywhere inside
+		// the reach would do, which is proximity collection again wearing a
+		// button.
+		var distance = Math.sqrt(dx * dx + dz * dz);
+		if (distance > 0) {
+			var facing = (player.forward.x * dx + player.forward.z * dz) / distance;
+			if (facing < FACING_TOLERANCE) {
+				return;
+			}
+		}
+
+		collected.set(key, true);
+		markPlotsFound.set('${divergence.plotX},${divergence.plotZ}', true);
+		rebuild(tile);
+		revealMarkIfComplete(player);
+	}
 
 	/** No camera override here — see `biomes.common.Biome.cameraOverride`'s own doc. **/
 	public function cameraOverride(player:PlayerModel):Null<CameraOverride> {

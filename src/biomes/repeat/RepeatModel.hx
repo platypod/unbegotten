@@ -126,8 +126,18 @@ class RepeatModel {
 		return roll < 0.45 ? 1 : (roll < 0.85 ? 2 : 3);
 	}
 
-	/** Fraction of anomalies that glitch rather than lean. The rarer of the two, being the harder to find. **/
-	static inline final GLITCH_SHARE:Float = 0.3;
+	/**
+		Fraction of anomalies that are the Tetris building.
+
+		The **easy** one, and deliberately so: a player who finds one obvious
+		anomaly now knows there is a search to lead, which is what makes the
+		other two findable at all. It teaches that anomalies exist; they
+		teach what looking closely is worth.
+	**/
+	static inline final PLAYING_SHARE:Float = 0.18;
+
+	/** Fraction of anomalies that glitch rather than lean. **/
+	static inline final GLITCH_SHARE:Float = 0.28;
 
 	/** Least a deformed building leans. See `anomalyLean`. **/
 	public static inline final ANOMALY_MIN_LEAN:Float = 0.035;
@@ -278,20 +288,26 @@ class RepeatModel {
 	/**
 		Which kind of wrong this tile's anomaly is.
 
-		Two kinds, appealing to different senses, which is the point of
-		having two: a `Leaning` building is spotted by *comparing shapes*
+		Three kinds, appealing to different senses, which is the point of
+		having more than one: a `Leaning` building is spotted by *comparing shapes*
 		against the tile you just left, and a `Glitching` one only by
 		*watching* — its facade runs a Life that cannot settle (see
 		`FacadeLife.GLITCH_FACADE`), so a player who never stands still will
 		walk straight past it. It stands perfectly upright on purpose;
 		giving it a lean too would let the harder tell be solved by the
-		easier one.
+		easier one. `Playing` is the tutorial case — unmissable once seen,
+		and its whole job is to establish that there is something to look
+		for.
 		@param i the tile's own x coordinate.
 		@param j the tile's own z coordinate.
 		@return the anomaly's kind.
 	**/
 	public static function anomalyKind(i:Int, j:Int):AnomalyKind {
-		return noise(i, j, 8) < GLITCH_SHARE ? Glitching : Leaning;
+		var roll = noise(i, j, 8);
+		if (roll < PLAYING_SHARE) {
+			return Playing;
+		}
+		return roll < PLAYING_SHARE + GLITCH_SHARE ? Glitching : Leaning;
 	}
 
 	/** The world position of a plot's own centre, in the given tile. **/
@@ -334,4 +350,7 @@ enum AnomalyKind {
 
 	/** Running a Life that cannot settle: found only by watching it. **/
 	Glitching;
+
+	/** Not running Life at all — see `FacadeLife.TETRIS_FACADE`. The one you are meant to find first. **/
+	Playing;
 }

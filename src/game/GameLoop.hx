@@ -346,6 +346,16 @@ class GameLoop {
 			}
 		} else {
 			handleMovement(scaledDt);
+			// A left click while walking is "act on what I am looking at",
+			// which is `interact`'s own meaning — the same thing E does. It
+			// is routed here rather than through `onEditClick` because that
+			// one needs a real cursor position, and outside edit mode the
+			// mouse is captured for looking: there is no cursor to
+			// unproject, and the thing being acted on is simply whatever is
+			// ahead. Biomes with nothing to act on are already no-ops.
+			if (hxd.Key.isPressed(hxd.Key.MOUSE_LEFT)) {
+				currentBiome.interact(player);
+			}
 		}
 
 		// INTERACT works whether editing or not — it's how GeodesicConwayBiome

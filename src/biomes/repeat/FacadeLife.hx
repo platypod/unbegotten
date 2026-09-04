@@ -57,8 +57,44 @@ class FacadeLife {
 	**/
 	public static inline final GLITCH_FACADE:Int = FACADE_COUNT;
 
-	/** Total grids, ordinary plus the glitch. **/
-	public static inline final TOTAL_FACADES:Int = FACADE_COUNT + 1;
+	/**
+		The Easter-egg facade: a building playing Tetris instead of running
+		Life.
+
+		**It is an anomaly, and deliberately the easy one.** The worry was
+		that a joke in the same slot as two real tells would cheapen them;
+		the answer, asked directly, is the opposite — it is *supposed* to be
+		found early and easily, because a player who finds one obvious
+		anomaly now knows there is a search to lead. It bootstraps the other
+		two rather than competing with them.
+
+		It also is not only a joke. In a space whose whole mechanic is
+		spotting what has been intervened with, a facade running a
+		**different rule** is the most extreme divergence available — and
+		Thread 4 has the rule being locally editable. Somebody did this.
+
+		**It loses.** See `stepTetris`.
+	**/
+	public static inline final TETRIS_FACADE:Int = FACADE_COUNT + 1;
+
+	/** Total grids: one per plot, plus the glitch and the Tetris. **/
+	public static inline final TOTAL_FACADES:Int = FACADE_COUNT + 2;
+
+	/**
+		The seven tetrominoes, as `[col, row]` offsets from the spawn corner
+		with row growing downward. Written out rather than generated: they
+		are the piece set, not data, and a reader should be able to see the
+		S and the Z are different.
+	**/
+	static final TETROMINOES:Array<Array<Array<Int>>> = [
+		[[0, 0], [1, 0], [2, 0], [3, 0]], // I
+		[[0, 0], [1, 0], [0, 1], [1, 1]], // O
+		[[0, 0], [1, 0], [2, 0], [1, 1]], // T
+		[[0, 0], [1, 0], [2, 0], [2, 1]], // J
+		[[0, 0], [1, 0], [2, 0], [0, 1]], // L
+		[[1, 0], [2, 0], [0, 1], [1, 1]], // S
+		[[0, 0], [1, 0], [1, 1], [2, 1]] // Z
+	];
 
 	/** Generations between the glitch facade's own wipes. **/
 	public static inline final GLITCH_PERIOD:Int = 7;
@@ -66,8 +102,14 @@ class FacadeLife {
 	/** Fraction of cells alive in a fresh seed — dense enough to develop, sparse enough not to die of overcrowding on generation one. **/
 	static inline final SEED_DENSITY:Float = 0.38;
 
-	/** Cells, indexed `facade * COLS * ROWS + row * COLS + col`. **/
+	/** Cells, indexed `facade * COLS * ROWS + row * COLS + col`. Row `0` is the bottom of a facade, since a window's row comes from its height above the ground. **/
 	var cells:Array<Bool>;
+
+	/** The falling piece's own cells, as `[col, row]` pairs, or empty between pieces. **/
+	var piece:Array<Array<Int>> = [];
+
+	/** How many pieces have been dropped — also the hash salt that picks the next one, so the sequence is deterministic. **/
+	var piecesDropped:Int = 0;
 
 	/** How many generations have been stepped — drives the glitch's own period. **/
 	public var generation(default, null):Int = 0;
@@ -83,6 +125,22 @@ class FacadeLife {
 			return false;
 		}
 		return cells[facade * COLS * ROWS + row * COLS + col];
+	}
+
+	/**
+		Which rule a facade runs. Explicit rather than a pair of index
+		comparisons scattered through `step`, since this is exactly the
+		"behaviour mode" CLAUDE.md wants stated as a machine — and a fourth
+		rule should be one branch here rather than another special case
+		bolted on.
+		@param facade the facade index.
+		@return the rule it runs.
+	**/
+	public static function ruleOf(facade:Int):FacadeRule {
+		if (facade == GLITCH_FACADE) {
+			return Glitched;
+		}
+		return facade == TETRIS_FACADE ? Tetris : Conway;
 	}
 
 	/**
@@ -104,8 +162,11 @@ class FacadeLife {
 		reads as a bug rather than as a rule.
 	**/
 	public function step():Void {
-		var next = [for (_ in 0...cells.length) false];
+		var next = cells.copy();
 		for (facade in 0...TOTAL_FACADES) {
+			if (ruleOf(facade) != Conway) {
+				continue; // stepped below, by its own rule
+			}
 			for (row in 0...ROWS) {
 				for (col in 0...COLS) {
 					var live = countNeighbours(facade, col, row);
@@ -124,6 +185,140 @@ class FacadeLife {
 			var flood = Std.int(generation / GLITCH_PERIOD) % 2 == 0;
 			for (index in 0...COLS * ROWS) {
 				cells[GLITCH_FACADE * COLS * ROWS + index] = flood;
+			}
+		}
+
+		stepTetris();
+	}
+
+	/**
+		Advances the Tetris facade one frame: the piece falls a row, locks
+		when it cannot, full rows clear, and a topped-out board is wiped and
+		started over.
+
+		**It plays badly on purpose.** Each piece is dropped at a hashed
+		column with no rotation and no attempt to fit — so the stack goes
+		ragged, holes get buried, and it tops out and starts again, forever.
+		That is the whole point of it: a perfect-play Tetris reads as a flex,
+		and a losing one reads as a *tomb*, which is what this city is.
+		Mechanically it is an oscillator that never learns, which is exactly
+		what Thread 2 says the ghosts are.
+	**/
+	function stepTetris():Void {
+		if (piece.length == 0) {
+			spawnPiece();
+			return;
+		}
+
+		if (canFall()) {
+			for (cell in piece) {
+				cell[1]--;
+			}
+			paintPiece();
+			return;
+		}
+
+		lockPiece();
+		clearFullRows();
+		piece = [];
+		spawnPiece();
+	}
+
+	/** Whether every cell of the falling piece has empty space below it. **/
+	function canFall():Bool {
+		for (cell in piece) {
+			var below = cell[1] - 1;
+			if (below < 0) {
+				return false;
+			}
+			if (isLocked(cell[0], below)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Whether a cell holds *settled* board, ignoring the falling piece. **/
+	function isLocked(col:Int, row:Int):Bool {
+		if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
+			return true;
+		}
+		for (cell in piece) {
+			if (cell[0] == col && cell[1] == row) {
+				return false; // the piece itself is not board
+			}
+		}
+		return cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col];
+	}
+
+	function spawnPiece():Void {
+		var shapes = TETROMINOES;
+		var shape = shapes[Std.int(noise(piecesDropped, 91) * shapes.length) % shapes.length];
+		var column = Std.int(noise(piecesDropped, 17) * COLS);
+		piecesDropped++;
+
+		var spawned = [for (offset in shape) [column + offset[0], ROWS - 1 - offset[1]]];
+		for (cell in spawned) {
+			if (cell[0] < 0 || cell[0] >= COLS) {
+				// Off the side: the bad player does not check, so the piece is
+				// simply lost. Another way this board never improves.
+				piece = [];
+				return;
+			}
+		}
+		// Topped out: the new piece has nowhere to be. Wipe and start over,
+		// which is the losing this facade exists to do.
+		for (cell in spawned) {
+			if (isLockedIgnoringPiece(cell[0], cell[1])) {
+				for (index in 0...COLS * ROWS) {
+					cells[TETRIS_FACADE * COLS * ROWS + index] = false;
+				}
+				piece = [];
+				return;
+			}
+		}
+		piece = spawned;
+		paintPiece();
+	}
+
+	function isLockedIgnoringPiece(col:Int, row:Int):Bool {
+		if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
+			return true;
+		}
+		return cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col];
+	}
+
+	/** Draws the falling piece into the grid so the shader can see it. **/
+	function paintPiece():Void {
+		for (cell in piece) {
+			if (cell[0] >= 0 && cell[0] < COLS && cell[1] >= 0 && cell[1] < ROWS) {
+				cells[TETRIS_FACADE * COLS * ROWS + cell[1] * COLS + cell[0]] = true;
+			}
+		}
+	}
+
+	function lockPiece():Void {
+		paintPiece();
+	}
+
+	/** Removes every full row and drops what was above it. **/
+	function clearFullRows():Void {
+		var kept = [];
+		for (row in 0...ROWS) {
+			var full = true;
+			for (col in 0...COLS) {
+				if (!cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col]) {
+					full = false;
+					break;
+				}
+			}
+			if (!full) {
+				kept.push([for (col in 0...COLS) cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col]]);
+			}
+		}
+		for (row in 0...ROWS) {
+			for (col in 0...COLS) {
+				cells[TETRIS_FACADE * COLS * ROWS + row * COLS + col] = row < kept.length ? kept[row][col] : false;
 			}
 		}
 	}
@@ -165,4 +360,16 @@ class FacadeLife {
 		h = h ^ (h >> 16);
 		return (h & 0x7FFFFFFF) / 2147483648.0;
 	}
+}
+
+/** Which rule a facade runs — see `FacadeLife.ruleOf`. **/
+enum FacadeRule {
+	/** Conway's B3/S23, which is what the world claims everything here runs. **/
+	Conway;
+
+	/** Life, but wiped on a period so it can never settle. **/
+	Glitched;
+
+	/** Not Life at all: somebody changed the rule here. **/
+	Tetris;
 }

@@ -1,5 +1,6 @@
 package biomes.repeat;
 
+import biomes.repeat.FacadeLife.FacadeRule;
 import utest.Assert;
 import utest.Test;
 
@@ -186,5 +187,68 @@ class FacadeLifeTest extends Test {
 			}
 		}
 		return alive;
+	}
+
+	// --- The Tetris facade: an Easter egg that has to actually lose.
+
+	function testTheTetrisFacadeIsNotRunningLife():Void {
+		Assert.equals(Tetris, FacadeLife.ruleOf(FacadeLife.TETRIS_FACADE));
+		Assert.equals(Glitched, FacadeLife.ruleOf(FacadeLife.GLITCH_FACADE));
+		Assert.equals(Conway, FacadeLife.ruleOf(0));
+	}
+
+	function testTheTetrisFacadeEventuallyStacksSomething():Void {
+		// If pieces never locked, the board would be empty forever and the
+		// egg would just be a dark building.
+		var life = new FacadeLife();
+		for (_ in 0...60) {
+			life.step();
+		}
+		Assert.isTrue(aliveIn(life, FacadeLife.TETRIS_FACADE) > 0, "nothing ever landed on the Tetris board");
+	}
+
+	function testTheTetrisFacadeNeverOverflowsItsOwnGrid():Void {
+		// The piece walks a raw index; a spawn off the side or a lock past
+		// the top would corrupt a neighbouring facade's cells rather than
+		// erroring, which is the kind of bug that shows up as another
+		// building behaving strangely.
+		var life = new FacadeLife();
+		var before = [for (facade in 0...FacadeLife.FACADE_COUNT) aliveIn(life, facade)];
+		for (_ in 0...200) {
+			life.step();
+		}
+		var conwayMoved = 0;
+		for (facade in 0...FacadeLife.FACADE_COUNT) {
+			if (aliveIn(life, facade) != before[facade]) {
+				conwayMoved++;
+			}
+		}
+		// They should have evolved on their own, but none should have been
+		// stamped wholly on or off the way only the glitch is.
+		var cells = FacadeLife.COLS * FacadeLife.ROWS;
+		for (facade in 0...FacadeLife.FACADE_COUNT) {
+			var alive = aliveIn(life, facade);
+			Assert.isTrue(alive < cells, 'facade $facade was flooded, which only the glitch may be');
+		}
+		Assert.isTrue(conwayMoved > 0, "no ordinary facade evolved at all");
+	}
+
+	function testTheTetrisFacadeLoses():Void {
+		// The whole point of the egg: it plays badly, tops out, and starts
+		// over. A board that only ever grew would mean it never resets; one
+		// that never shrank would mean rows never clear either.
+		var life = new FacadeLife();
+		var counts = [];
+		for (_ in 0...400) {
+			life.step();
+			counts.push(aliveIn(life, FacadeLife.TETRIS_FACADE));
+		}
+		var drops = 0;
+		for (index in 1...counts.length) {
+			if (counts[index] < counts[index - 1]) {
+				drops++;
+			}
+		}
+		Assert.isTrue(drops > 0, "the Tetris board never lost anything — it neither clears rows nor tops out");
 	}
 }

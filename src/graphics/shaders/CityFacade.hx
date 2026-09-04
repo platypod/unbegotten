@@ -87,6 +87,18 @@ class CityFacade extends hxsl.Shader {
 			object with its own shader instance, so it can simply be told.
 		**/
 		@param var facadeOverride:Float;
+		/**
+			`1` to light panes from a fixed hash instead of the simulation —
+			what an *identified* building looks like.
+
+			The building stops running: whatever rule it was on, once the
+			player has named it, its windows freeze into static noise. It is
+			the one visible record of what you have already found, it is
+			diegetic (no counter, no marker), and it is the same hash the
+			whole city used before any of it was alive — so a found building
+			is quite literally one that has stopped.
+		**/
+		@param var frozen:Float;
 		var transformedPosition:Vec3;
 		var output:{
 			var color:Vec4;
@@ -141,7 +153,9 @@ class CityFacade extends hxsl.Shader {
 			// into one strip, so a facade is a band of `facadeRows` rows.
 			var u = (cell.x + 0.5) / facadeCols;
 			var v = (facade * facadeRows + cell.y + 0.5) / (facadeRows * totalFacades);
-			var lit = step(0.5, lifeMap.get(vec2(u, v)).r);
+			var simulated = step(0.5, lifeMap.get(vec2(u, v)).r);
+			var frozenLit = step(0.62, hash(cell, 11.0));
+			var lit = mix(simulated, frozenLit, frozen);
 			var neon = step(1.0 - neonRate, hash(cell, 37.0)) * lit;
 
 			// Unlit panes sit *below* the wall value, so a dark tower still
@@ -170,9 +184,10 @@ class CityFacade extends hxsl.Shader {
 		@param tileSize the Repeat's own tile period, which makes the window pattern identical in every tile.
 		@param lifeMap the packed facade simulations — see `biomes.repeat.FacadeLife`.
 		@param facadeOverride which facade to read regardless of position, or `-1` to use the one this building's own plot implies. Only the anomaly passes anything else.
+		@param frozen `1` for a building the player has already identified, which stops simulating and shows static noise.
 	**/
 	public function new(faceEastWest:Int, faceNorthSouth:Int, faceTop:Int, windowDark:Int, windowLit:Int, windowNeon:Int, fogColor:Int, fogStart:Float,
-			fogEnd:Float, tileSize:Float, lifeMap:h3d.mat.Texture, facadeOverride:Float = -1) {
+			fogEnd:Float, tileSize:Float, lifeMap:h3d.mat.Texture, facadeOverride:Float = -1, frozen:Float = 0) {
 		super();
 		this.faceEastWest.setColor(faceEastWest);
 		this.faceNorthSouth.setColor(faceNorthSouth);
@@ -186,6 +201,7 @@ class CityFacade extends hxsl.Shader {
 		this.tileSize = tileSize;
 		this.lifeMap = lifeMap;
 		this.facadeOverride = facadeOverride;
+		this.frozen = frozen;
 		this.windowSize = biomes.repeat.FacadeLife.WINDOW_SIZE;
 		this.plotSize = biomes.repeat.RepeatModel.PLOT_SIZE;
 		this.facadeCols = biomes.repeat.FacadeLife.COLS;
