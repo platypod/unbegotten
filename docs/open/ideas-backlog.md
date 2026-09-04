@@ -985,7 +985,7 @@ smaller scale, each exit zooms you back up.
 
 ---
 
-### Every building is a game of life *(not built — the windows are a static hash)*
+### Every building is a game of life *(BUILT 2026-09-04 — `biomes.repeat.FacadeLife`)*
 
 Raised on seeing the city on local: *"I love the idea that each building
 represents a game of life."* **It is not one.** `graphics.shaders.CityFacade`
@@ -1041,9 +1041,27 @@ even by someone who knew to look for it:
   ground storey; leaving that band dark gives the eye a still reference to
   read the moving ones against.
 
-Blocked on nothing technically. Left here rather than started because it
-wants a pass of its own, and because step 4 changes the anomaly design that
-was only just changed once.
+**Built.** `biomes.repeat.FacadeLife` runs the 36 grids plus the glitch;
+`graphics.shaders.CityFacade` samples them instead of hashing;
+`RepeatBiome` owns the clock (`GENERATION_SECONDS`) and re-uploads one
+texture per generation. Step 4 landed too, as `RepeatModel.AnomalyKind`:
+`Leaning` is found by comparing shapes, `Glitching` only by watching, and
+the glitching one stands upright so the harder tell cannot be solved by the
+easier one.
+
+Left for the next pass, from the legibility list above: **gliders across
+facades** — the seeds are random, so whether any facade ever produces a
+travelling pattern is luck rather than design, and a deliberately seeded
+glider is the single most unmistakable "this is a rule, not a texture"
+signal available. **Not yet verified animating in the running game**: the
+rule and the stepping are unit-tested and the shader demonstrably reads the
+simulation, but the browser pane would not composite frames long enough to
+watch two generations, so the *feel* of the pace (`GENERATION_SECONDS`) is
+untested.
+
+This entry stays here rather than moving to `world.md` only because that
+file has uncommitted edits in the working tree; the Repeat's own entry there
+still describes windows as decoration and needs rewriting.
 
 ## Narrative & characters
 
