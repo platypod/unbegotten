@@ -1,0 +1,17 @@
+{
+  "_comment": "The landmark alphabet (docs/game/art-and-audio.md, 'Landmark language'). Every glyph is a real Conway still life, which is why this is data and not invented art: the material language says everything is cells, and Thread 2 says the terrain is made of the ones who stopped. A still life IS one who stopped. Cells are [x, y] on a small grid, origin-normalised. The set is verified pairwise-distinct under rotation AND reflection by GlyphAlphabetTest — parallel transport rotates these, so any two that were rotations of each other would be the same landmark to a player who arrived from a different direction.",
+  "glyphs": [
+    { "name": "block",    "cells": [[0,0],[1,0],[0,1],[1,1]] },
+    { "name": "tub",      "cells": [[1,0],[0,1],[2,1],[1,2]] },
+    { "name": "boat",     "cells": [[0,0],[1,0],[0,1],[2,1],[1,2]] },
+    { "name": "ship",     "cells": [[0,0],[1,0],[0,1],[2,1],[1,2],[2,2]] },
+    { "name": "beehive",  "cells": [[1,0],[2,0],[0,1],[3,1],[1,2],[2,2]] },
+    { "name": "loaf",     "cells": [[1,0],[2,0],[0,1],[3,1],[1,2],[3,2],[2,3]] },
+    { "name": "pond",     "cells": [[1,0],[2,0],[0,1],[3,1],[0,2],[3,2],[1,3],[2,3]] },
+    { "name": "barge",    "cells": [[1,0],[0,1],[2,1],[1,2],[3,2],[2,3]] },
+    { "name": "longboat", "cells": [[1,0],[0,1],[2,1],[1,2],[3,2],[2,3],[3,3]] },
+    { "name": "carrier",  "cells": [[0,0],[1,0],[0,1],[2,1],[3,1],[2,2],[3,2]] },
+    { "name": "eater",    "cells": [[0,0],[1,0],[0,1],[2,1],[2,2],[2,3],[3,3]] },
+    { "name": "snake",    "cells": [[0,0],[1,0],[3,0],[0,1],[2,1],[3,1]] }
+  ]
+}

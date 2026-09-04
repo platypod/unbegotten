@@ -2,6 +2,10 @@
 -cp test
 -lib heaps
 -lib utest
+# The shipped landmark alphabet, embedded so GlyphAlphabetTest can check the
+# real file rather than a fixture — the test target is -js, which has no
+# sys.io.File (see tools.geodesic.Vec3's own note on the same limitation).
+-resource res/data/landmark-glyphs.json@landmark-glyphs
 -main TestMain
 -js bin/test.js
 -D analyzer-optimize
