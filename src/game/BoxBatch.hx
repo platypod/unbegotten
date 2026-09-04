@@ -31,16 +31,29 @@ class BoxBatch {
 	final parent:h3d.scene.Object;
 	final color:Int;
 
+	/**
+		Builds the shader each emitted mesh is given instead of a flat
+		`h3d.shader.FixedColor`, or null for the flat fill.
+
+		A factory rather than one shared instance: `flush` can emit several
+		meshes (that is the whole reason this class exists), and a shader
+		instance carries per-mesh parameter state that must not be shared
+		between them.
+	**/
+	final shade:Null<Void->hxsl.Shader>;
+
 	var points:Array<h3d.Vector>;
 	var idx:hxd.IndexBuffer;
 
 	/**
 		@param parent the scene object emitted meshes are attached to.
-		@param color the flat colour every box in this batch is drawn in — one batch per colour, since a `FixedColor` pass covers the whole mesh.
+		@param color the flat colour every box in this batch is drawn in — one batch per colour, since a `FixedColor` pass covers the whole mesh. Ignored when `shade` is given.
+		@param shade builds a shader to use instead of the flat fill; the emitted geometry gains per-face normals when this is set, since any shader worth swapping in wants to know which way a face points (see `graphics.shaders.CityFacade`).
 	**/
-	public function new(parent:h3d.scene.Object, color:Int) {
+	public function new(parent:h3d.scene.Object, color:Int, ?shade:Void->hxsl.Shader) {
 		this.parent = parent;
 		this.color = color;
+		this.shade = shade;
 		points = [];
 		idx = new hxd.IndexBuffer();
 	}
@@ -93,8 +106,16 @@ class BoxBatch {
 		if (points.length == 0) {
 			return; // Polygon rejects an empty vertex list, and an empty batch legitimately produces one
 		}
-		var mesh = new h3d.scene.Mesh(new h3d.prim.Polygon(points, idx), parent);
-		mesh.material.mainPass.addShader(new h3d.shader.FixedColor(color));
+		var polygon = new h3d.prim.Polygon(points, idx);
+		var shader = shade;
+		if (shader != null) {
+			// Per-face rather than smoothed, and correct by construction:
+			// `add` pushes four fresh vertices per quad and never shares
+			// one between faces, so nothing averages across an edge.
+			polygon.addNormals();
+		}
+		var mesh = new h3d.scene.Mesh(polygon, parent);
+		mesh.material.mainPass.addShader(shader != null ? shader() : new h3d.shader.FixedColor(color));
 		mesh.material.mainPass.culling = None;
 
 		points = [];

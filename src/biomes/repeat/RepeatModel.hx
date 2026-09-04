@@ -101,6 +101,34 @@ class RepeatModel {
 		return noise(plotX, plotZ, 1) >= EMPTY_PLOT_RATE;
 	}
 
+	/**
+		How many stacked tiers a plot's building is built from — a plain box
+		(`1`) or a stepped one (`2`/`3`), each tier inset from the one below.
+
+		Silhouette variety, and it also buys the space's own mechanic
+		something: a *missing setback* is a subtler difference than a
+		missing block, which gives spot-the-difference a range of
+		difficulties it did not have when every building was one box.
+
+		Deterministic from the plot alone, with the tile's coordinates
+		deliberately absent, for exactly the reason `referenceHasBuilding`
+		is — every tile has to be identical by construction or the
+		comparison mechanic has nothing to stand on.
+		@param plotX plot column within the tile.
+		@param plotZ plot row within the tile.
+		@return how many tiers to stack.
+	**/
+	public static function tierCount(plotX:Int, plotZ:Int):Int {
+		var roll = noise(plotX, plotZ, 5);
+		if (buildingHeight(plotX, plotZ) < MIN_BUILDING_HEIGHT + (MAX_BUILDING_HEIGHT - MIN_BUILDING_HEIGHT) * 0.35) {
+			return 1; // a low block has no room to step and reads as a plinth if it tries
+		}
+		return roll < 0.45 ? 1 : (roll < 0.85 ? 2 : 3);
+	}
+
+	/** How much each tier narrows relative to the one below it. **/
+	public static inline final TIER_INSET:Float = 0.74;
+
 	/** How tall the building on a plot stands. Same determinism as `referenceHasBuilding`. **/
 	public static function buildingHeight(plotX:Int, plotZ:Int):Float {
 		return MIN_BUILDING_HEIGHT + noise(plotX, plotZ, 2) * (MAX_BUILDING_HEIGHT - MIN_BUILDING_HEIGHT);

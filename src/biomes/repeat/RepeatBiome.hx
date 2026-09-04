@@ -108,7 +108,7 @@ class RepeatBiome implements Biome {
 
 	/** Neutral, and lighter than the game's other flat space — an overcast city rather than the Ribbon's own graveyard dark. **/
 	public function backgroundColor():Int {
-		return 0x20242A;
+		return RepeatMesh.SKY_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
