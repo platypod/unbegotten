@@ -7,6 +7,8 @@ import biomes.hub.HubBiome;
 import entities.painting.PaintingModel;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
+import game.BoxBatch;
+import graphics.Colours;
 
 /**
 	**The Repeat** — a city that goes on forever, in which every block is
@@ -58,6 +60,27 @@ class RepeatBiome implements Biome {
 
 	/** How close the player must get to a fragment to take it — generous, since it stands in an open plot and hunting for a precise spot is not the puzzle. **/
 	static inline final FRAGMENT_REACH:Float = 8.0;
+
+	/** The assembled mark's own pillars, as a fraction of a building's footprint — slimmer than the city, so it reads as placed rather than as more architecture. **/
+	static inline final MARK_FOOTPRINT:Float = 0.45;
+
+	/** How tall the assembled mark stands. Above the city's own median so its shape is legible from across the tile, which is the whole point of it. **/
+	static inline final MARK_HEIGHT:Float = 62;
+
+	/**
+		Which of the mark's own plots the player has taken a fragment at,
+		keyed by `"plotX,plotZ"`.
+
+		This, not the tile count, is what completes the mark: two fragments
+		from the same plot of two different tiles are the *same* piece of
+		evidence overlaid twice, and learning that is part of the mechanic —
+		the player who collects blindly finds the mark stops filling in,
+		and has to start noticing *where* in a tile the gap was.
+	**/
+	var markPlotsFound:Map<String, Bool> = new Map();
+
+	/** The assembled mark, once every plot has been found. Null until then. **/
+	var markMesh:Null<h3d.scene.Object> = null;
 
 	/** Which tiles have had their fragment taken. Keyed by `tileKey`, since the plane is unbounded and an array would have to be. **/
 	final collected:Map<String, Bool> = new Map();
@@ -190,7 +213,48 @@ class RepeatBiome implements Biome {
 		}
 
 		collected.set(key, true);
-		rebuild(tile); // the fragment has to actually disappear, which is the only feedback this prototype gives
+		markPlotsFound.set('${divergence.plotX},${divergence.plotZ}', true);
+		rebuild(tile); // the fragment has to actually disappear
+		revealMarkIfComplete(player);
+	}
+
+	/** How many of the mark's own plots the player has found so far. **/
+	public function markProgress():Int {
+		var found = 0;
+		for (plot in RepeatModel.MARK_PLOTS) {
+			if (markPlotsFound.exists('${plot.plotX},${plot.plotZ}')) {
+				found++;
+			}
+		}
+		return found;
+	}
+
+	/**
+		Raises the mark once every one of its plots has been found — the
+		design's own payload, the moment the differences "stop reading as
+		noise" and resolve into intent.
+
+		Built standing in the player's own tile rather than at some fixed
+		place, because the evidence is not *somewhere*: it is a fact about
+		every tile at once, and the player should meet it where they
+		happened to complete it.
+	**/
+	function revealMarkIfComplete(player:PlayerModel):Void {
+		var container = world;
+		if (container == null || markMesh != null || markProgress() < RepeatModel.MARK_PLOTS.length) {
+			return;
+		}
+
+		var tile = RepeatModel.tileIndexAt(player.pos.x, player.pos.z);
+		var root = new h3d.scene.Object(container);
+		var slabs = new BoxBatch(root, Colours.SIGNAL_MARK);
+		for (plot in RepeatModel.MARK_PLOTS) {
+			var at = RepeatModel.plotCentre(tile.i, tile.j, plot.plotX, plot.plotZ);
+			var half = RepeatModel.buildingHalfExtent() * MARK_FOOTPRINT;
+			slabs.add(at.x, at.z, half, half, 0, MARK_HEIGHT);
+		}
+		slabs.flush();
+		markMesh = root;
 	}
 
 	function rebuild(around:{i:Int, j:Int}):Void {

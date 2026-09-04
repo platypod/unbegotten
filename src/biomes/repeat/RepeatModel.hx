@@ -107,6 +107,49 @@ class RepeatModel {
 	}
 
 	/**
+		**The mark the predecessor left**, as plots of a tile's own grid.
+
+		`world.md`'s mechanism for this space turns on one word: the
+		divergences, *overlaid*, "compose into something specific — a mark,
+		not the player's own, deliberate rather than incidental." So the mark
+		is not a separate object placed somewhere to be found. It is latent
+		in **which** plot each tile diverges at: overlay every tile's
+		divergence onto one grid and the shape appears. Before this, that
+		plot was hashed, so the overlay was noise and the design's payload
+		could not exist however long the player looked.
+
+		The shape is the **loaf**, a Conway still life, at the rotation and
+		offset where all seven of its cells land on plots the reference
+		layout actually builds on — a divergence that removed an
+		already-empty plot would be no divergence at all. That constraint is
+		most of why it is this glyph: `eater`, tried first, has no placement
+		on this 6×6 grid where every cell is built.
+
+		A still life is exactly the right thing for the mark to be. Random
+		cells are noise; a still life is a configuration that *holds*, which
+		is unmistakably a choice — and Thread 2 makes it more than a
+		flourish, since a still life is one of the ones who stopped. The
+		player has also been navigating by these shapes elsewhere
+		(`entities.landmark.GlyphAlphabet`), so it reads as language rather
+		than as a pattern.
+
+		Duplicated here rather than loaded from the alphabet's own data file,
+		because this class is engine-agnostic and pure — the whole reason it
+		is testable without `hxd.Res` — and story content pinned to this
+		biome's plot grid is not the same object as a wayfinding vocabulary.
+		`RepeatMarkTest` asserts the two cannot drift apart.
+	**/
+	public static final MARK_PLOTS:Array<{plotX:Int, plotZ:Int}> = [
+		{plotX: 1, plotZ: 2},
+		{plotX: 0, plotZ: 3},
+		{plotX: 2, plotZ: 3},
+		{plotX: 0, plotZ: 4},
+		{plotX: 3, plotZ: 4},
+		{plotX: 1, plotZ: 5},
+		{plotX: 2, plotZ: 5}
+	];
+
+	/**
 		Which plot of a tile diverges from the reference, or null if this
 		tile is one of the untouched ones.
 
@@ -123,19 +166,10 @@ class RepeatModel {
 		if (noise(i, j, 3) >= DIVERGENCE_RATE) {
 			return null;
 		}
-		// Search from a hashed starting plot for one the reference builds
-		// on — a divergence that removed an already-empty plot would be no
-		// divergence at all, and every tile has plenty of built plots.
-		var start = Math.floor(noise(i, j, 4) * PLOTS_PER_TILE * PLOTS_PER_TILE);
-		for (offset in 0...PLOTS_PER_TILE * PLOTS_PER_TILE) {
-			var plot = (start + offset) % (PLOTS_PER_TILE * PLOTS_PER_TILE);
-			var plotX = plot % PLOTS_PER_TILE;
-			var plotZ = Std.int(plot / PLOTS_PER_TILE);
-			if (referenceHasBuilding(plotX, plotZ)) {
-				return {plotX: plotX, plotZ: plotZ};
-			}
-		}
-		return null; // unreachable for any sane EMPTY_PLOT_RATE, but a layout with no buildings has nothing to remove
+		// One of the mark's own plots, not an arbitrary built one — this
+		// is what makes the overlay across tiles compose into a shape
+		// instead of into noise. See MARK_PLOTS.
+		return MARK_PLOTS[Math.floor(noise(i, j, 4) * MARK_PLOTS.length)];
 	}
 
 	/**
