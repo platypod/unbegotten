@@ -39,27 +39,42 @@ class DebugHubOrder {
 		`conway` is the Fold: the geodesic sphere kept the original biome's
 		registry id when it was swapped in (see `game.GameLoop`), so the
 		implementation name and the design name genuinely differ here.
+
+		**The French name is on the sign too**, on a second line — the same
+		set `docs/game/one-page.fr.svg` uses, kept here so the two cannot
+		drift. They are not calques: the English names mostly carry a double
+		meaning and the French ones have to carry one as well (`Le Repli` is
+		the geometric fold *and* the pen you were kept safe in, `Le Motif` is
+		the repeated pattern *and* the cause). `La Volte`, `Le Défaut`,
+		`Le Ruban` and `La Prolifération` are still working titles — see the
+		naming section of `docs/game/one-page.fr.md` before changing one.
 	**/
-	static final NUMBERED:Map<String, {number:Int, name:String}> = [
-		"hub" => {number: 0, name: "Still Life"},
-		"conway" => {number: 1, name: "Fold"},
-		"weft" => {number: 2, name: "Weft"},
-		"repeat" => {number: 3, name: "Repeat"},
-		"turn" => {number: 4, name: "Turn"},
-		"defect" => {number: 5, name: "Defect"},
-		"ribbon" => {number: 6, name: "Ribbon"},
-		"sprawl" => {number: 7, name: "Sprawl"},
-		"knot" => {number: 8, name: "Knot"},
+	static final NUMBERED:Map<String, {number:Int, name:String, french:String}> = [
+		"hub" => {number: 0, name: "Still Life", french: "La Nature Morte"},
+		"conway" => {number: 1, name: "Fold", french: "Le Repli"},
+		"weft" => {number: 2, name: "Weft", french: "La Trame"},
+		"repeat" => {number: 3, name: "Repeat", french: "Le Motif"},
+		"turn" => {number: 4, name: "Turn", french: "La Volte"},
+		"defect" => {number: 5, name: "Defect", french: "Le Défaut"},
+		"ribbon" => {number: 6, name: "Ribbon", french: "Le Ruban"},
+		"sprawl" => {number: 7, name: "Sprawl", french: "La Prolifération"},
+		"knot" => {number: 8, name: "Knot", french: "Le Nœud"},
 	];
 
 	/**
 		What a portal to this biome should read.
+		Two lines for a numbered space, English then French. The sign was
+		made taller to take the second line rather than the text made
+		smaller (`DebugHubBiome.PORTAL_HEIGHT`), because this class's own
+		note about label scaling cuts both ways: a longer string renders in
+		smaller glyphs, and the point of the sign is being readable from
+		across the room.
 		@param id the biome's own registry id.
-		@return `"5. Defect"` for one of the nine, or the bare id for anything else.
+		@return `"5. Defect\nLe Défaut"` for one of the nine, or the bare id for anything else.
 	**/
 	public static function labelFor(id:String):String {
 		var entry = NUMBERED.get(id);
-		return entry == null ? id : '${entry.number}. ${entry.name}';
+		return entry == null ? id : '${entry.number}. ${entry.name}\n${entry.french}';
 	}
 
 	/**

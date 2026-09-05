@@ -27,6 +27,9 @@ class LabelTexture {
 	/** Fraction of the texture's height the text is allowed to fill. **/
 	static inline final HEIGHT_FILL:Float = 0.7;
 
+	/** Gap between stacked lines, as a fraction of the band each line gets. **/
+	static inline final LINE_GAP:Float = 0.12;
+
 	/**
 		@param text the string to render; short — this is a sign, not a paragraph.
 		@param width the texture's width in pixels.
@@ -41,15 +44,29 @@ class LabelTexture {
 		var root = new h2d.Object();
 		new h2d.Bitmap(h2d.Tile.fromColor(background, width, height), root);
 
-		var label = new h2d.Text(hxd.res.DefaultFont.get(), root);
-		label.text = text;
-		label.textColor = textColor;
-		// DefaultFont is a small fixed-size bitmap font, so filling a sign
-		// means scaling the glyphs up rather than asking for a bigger size.
-		var scale = Math.min(width * WIDTH_FILL / Math.max(1, label.textWidth), height * HEIGHT_FILL / Math.max(1, label.textHeight));
-		label.setScale(scale);
-		label.x = (width - label.textWidth * scale) / 2;
-		label.y = (height - label.textHeight * scale) / 2;
+		// **Each line is scaled to its own band, not the block to the
+		// longest line.** Scaling the whole string means one long line
+		// shrinks every other line with it: "0. Still Life / La Nature
+		// Morte" came out visibly smaller than "1. Fold / Le Repli" beside
+		// it, which is the same unreadability `biomes.debug.DebugHubBiome`
+		// has hit before. Per line, every sign fills its band.
+		var lines = text.split("\n");
+		var band = height / lines.length;
+		var lineHeight = band * (1 - LINE_GAP);
+
+		for (index in 0...lines.length) {
+			var label = new h2d.Text(hxd.res.DefaultFont.get(), root);
+			label.text = lines[index];
+			label.textColor = textColor;
+			// DefaultFont is a small fixed-size bitmap font, so filling a
+			// sign means scaling the glyphs up rather than asking for a
+			// bigger size.
+			var fill = lines.length == 1 ? HEIGHT_FILL : 1.0;
+			var scale = Math.min(width * WIDTH_FILL / Math.max(1, label.textWidth), lineHeight * fill / Math.max(1, label.textHeight));
+			label.setScale(scale);
+			label.x = (width - label.textWidth * scale) / 2;
+			label.y = index * band + (band - label.textHeight * scale) / 2;
+		}
 
 		root.drawTo(texture);
 		return texture;

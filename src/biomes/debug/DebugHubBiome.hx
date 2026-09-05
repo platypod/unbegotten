@@ -66,14 +66,25 @@ class DebugHubBiome implements Biome {
 	**/
 	static inline final PORTAL_WIDTH:Float = 40;
 
-	/** Vertical span a portal sign fills — see `PaintingModel.fillWall`, and `PORTAL_WIDTH` for why it's this short. **/
-	static inline final PORTAL_HEIGHT:Float = 14;
+	/**
+		Vertical span a portal sign fills — see `PaintingModel.fillWall`, and
+		`PORTAL_WIDTH` for why it is short rather than square.
+
+		Doubled from `14` when the French name went onto a second line
+		(`DebugHubOrder.labelFor`). Making the sign taller rather than the
+		text smaller is deliberate: `LabelTexture` scales a string to fit, so
+		two lines in the old box would have halved the glyph size, and this
+		class's own history is of labels that became unreadable across the
+		room. `LABEL_HEIGHT` moves with it so the quad and the texture keep
+		the same ratio and nothing is stretched.
+	**/
+	static inline final PORTAL_HEIGHT:Float = 26;
 
 	/** Label texture size, in pixels — proportioned to match the sign quad (see `PORTAL_WIDTH`), not chosen for its own sake. **/
 	static inline final LABEL_WIDTH:Int = 256;
 
-	/** Proportioned to the sign quad's own `PORTAL_WIDTH`/`PORTAL_HEIGHT` ratio, so glyphs are not stretched — see `PORTAL_WIDTH`. **/
-	static inline final LABEL_HEIGHT:Int = 90;
+	/** Proportioned to the sign quad's own `PORTAL_WIDTH`/`PORTAL_HEIGHT` ratio, so glyphs are not stretched — see `PORTAL_WIDTH` and `PORTAL_HEIGHT`. **/
+	static inline final LABEL_HEIGHT:Int = 168;
 
 	/** Same first-pass value as every other biome's — see `biomes.hub.HubBiome.GRAVITY`'s own doc for why each biome states its own. **/
 	static inline final GRAVITY:Float = 60;
