@@ -254,12 +254,89 @@ started. But not all of it. Something else once stood exactly where
 you're standing, and left a mark specifically so it could be found this
 way.
 
-**Built — `biomes.repeat.RepeatBiome`.** The cell city, tiled deterministically; divergences that
-remove exactly one building and open the ground under it; a fragment
-standing in the gap; per-tile solved state. What is *not* built is the
-composite-mark reveal — the payload — deliberately held until the
-comparison mechanic is confirmed to read, since authoring content for a
-mechanic that might not work is the expensive mistake.
+**Built — `biomes.repeat.RepeatBiome`.** The cell city, tiled
+deterministically, with the comparison mechanic and its payload both in
+place.
+
+**The mark is latent in the divergences, not placed among them
+(2026-09-04).** This entry's own mechanism turns on one word — the
+divergences, *overlaid*, compose into something specific — so the mark was
+never an object to find. It is **which** plot each tile diverges at: overlay
+every tile's divergence onto one grid and the shape appears. The plot used
+to be hashed, so the overlay was noise and the payload could not exist
+however long anyone looked. Divergences now draw from `RepeatModel.
+MARK_PLOTS`, which is the **loaf** — a still life, at the rotation and
+offset where all seven cells land on plots the reference layout actually
+builds on. A still life is the right thing for it to be: random cells are
+noise, a configuration that *holds* is unmistakably a choice, and Thread 2
+makes that more than a flourish. Completion is tracked per *mark plot*, not
+per tile, so a player collecting blindly finds the shape stops filling in
+and has to start noticing *where* in a tile the gap was.
+
+**The anomaly is a wrong building, not a missing one (2026-09-04).** It
+used to remove a building outright and stand a bright marker in the gap.
+Both are gone: a whole hole in a repeated skyline is unmissable, so the
+space was being solved by glancing rather than by comparing, which is the
+one thing it exists to make you do. This costs something and the trade is
+deliberate — the original rule was argued here as "recognising the
+difference and reaching the new ground are the same act", and a wrong
+building is a difference you can only look at, so those two now come apart.
+Worth it: a mechanic never exercised because the answer is visible from
+fifty metres is worth less than a slightly less elegant one that is. Layout
+identity got *stronger* as a side effect — every tile now carries the whole
+reference layout with no exceptions, and the difference lives entirely in
+shape and behaviour.
+
+**Six kinds of wrong, tiered by distance (2026-09-05).** `RepeatModel.
+AnomalyKind`, each appealing to a different sense: `Leaning` (compare
+shapes), `Glitching` (a Life that cannot settle — found only by watching),
+`Playing` (a facade running **Tetris**; see below), `Misshapen` (a setback
+too many or too few — the only kind readable at distance or while walking
+past), `Stopped` (settled into still lifes while its counterparts churn),
+and `Phased` (the correct simulation running nine generations late, so it
+is wrong only against a tile you *remember* — the most on-thesis of the
+set). `anomalyTierAt` gates them by Chebyshev ring: the easy kinds near the
+way out, everything past ring 6. The city teaches you to see before it asks.
+
+**Identifying is a click, and identified buildings freeze.** Proximity
+collection meant walking past was enough, so the player never had to commit
+to an answer. A click makes it a claim. A building you have named stops
+running — its windows freeze into static noise, the same hash the whole city
+used before any of it was alive — so a found building is literally one that
+has stopped, and that is the only record of progress at ground level.
+Overhead, a **constellation** assembles: one star per mark plot found, hung
+in the mark's own arrangement, so progress and the thing being progressed
+toward are one object and the gaps are information too.
+
+**The facades run Conway's Life (2026-09-04).** Not decoration and not a
+metaphor: the windows *are* cells, and lit means alive, which is the
+material language already. An unbounded city costs 37 grids, because tile
+identity means there are only ever `PLOTS_PER_TILE²` distinct facades —
+every tile is the same tile — so `biomes.repeat.FacadeLife` covers the whole
+plane with 36 small simulations plus the glitch, the stopped one, the Tetris
+one and a lagged copy of every plot. Every visible building showing the same
+generation is not a compromise; it is exactly this space's claim.
+
+**Tetris is an anomaly, and deliberately the easy one.** The worry was that
+a joke in the same slot as real tells would cheapen them; the answer is the
+opposite — it is *supposed* to be found early, because a player who finds
+one obvious anomaly now knows there is a search to lead. It bootstraps the
+others. It is also not only a joke: in a space whose mechanic is spotting
+what has been intervened with, a facade running a **different rule** is the
+most extreme divergence available, and Thread 4 has the rule being locally
+editable. Somebody did this. **And it loses** — pieces drop at a hashed
+column with no rotation and no attempt to fit, so it stacks ragged, tops
+out, wipes and starts again forever. A perfect-play Tetris reads as a flex;
+a losing one reads as a tomb, and mechanically it is an oscillator that
+never learns, which is what Thread 2 says the ghosts are.
+
+**Visually (2026-09-04):** facet shading, procedural windows, distance fade,
+stepped setbacks and street-level light strips — see
+[art-and-audio.md](art-and-audio.md). The window pattern is keyed on
+*tile-local* coordinates, which is load-bearing rather than tidy: a pattern
+keyed on world position would make every tile visibly unique and destroy the
+comparison mechanic outright, so identity is enforced by the arithmetic
+rather than by anyone remembering the rule.
 
 Two findings from building it:
 
@@ -355,22 +432,53 @@ obstructing you.
 against this entry's own stated ordering (the ribbon first, since a bad
 ribbon kills a good mechanic). It moves at 2.4x walking speed with a
 rhythm of obstacles to weave, taking *both* of the ways out named above
-rather than choosing. The chirality-routing puzzle is deliberately not
-built on top of an unproven ribbon.
+rather than choosing.
+
+**The chirality gate (2026-09-03), which this entry used to say was
+deliberately unbuilt.** The smallest honest form of what the mechanism
+above asks for: a barrier across the middle of the band, solid on one lift
+and gone on the other. You meet it on the first lap and it is closed; walk
+a lap, the glide puts you on the other lift, and it is open. Nothing about
+you visibly changed, which is the whole lesson — *your handedness is not a
+property you carry, it is one the space assigns you*.
+
+**Deliberately a shortcut and not a lock.** It spans only the middle third,
+so both lanes stay open and there is always a way around. That matters more
+here than it would elsewhere: this entry says the setup is "not yet sold",
+and the exit painting is otherwise the only way out of the biome, so a gate
+that actually stopped you could trap a player inside a mechanic that has
+not been playtested. A gate that costs a detour teaches the same rule and
+fails safe. `TurnGateTest` scans the whole band width rather than trusting
+the arithmetic.
+
+Closed on the even lift — the one the player arrives on — so the first
+encounter is always the closed one; an open gate is indistinguishable from
+no gate at all. `TurnBiome.lift` resets on entry rather than persisting,
+because this entry's own stated gain is *a technique* rather than a key:
+you produce the handedness you want each visit, not arrive holding it.
+
+**Still unbuilt: the glider annihilation.** The version where a passage is
+blocked by a chiral glider and cleared by routing its opposite to meet it
+needs a glider entity that travels the band and something to carry or
+launch it — `CARRY` does not exist. What is built is the same rule at the
+player's own scale: you are the chiral thing, and routing is what sets your
+handedness.
 
 `biomes.mobius.*` and `MobiusMath` still exist and are **a different
 thing**: that biome embeds a twisted strip in ℝ³, which carries real
 curvature everywhere and is therefore not the κ = 0 space this entry
 describes. Both are kept; the embedded one is prettier to look at.
 
-**A proposal for the open "how does the player read their own state"
-question**, awaiting playtest before it earns a place in this entry: a
+**The answer to the open "how does the player read their own state"
+question — built, and now what the gate leans on.** A
 Möbius band has a *single* boundary curve, twice the band's own period
 long. Painting it pale for one period and dashed for the next makes
 "which rail is beside me" a direct readout of which lift you are on —
-one glance, at speed, no instrument and no detour. If it reads as being
-*told* rather than *discovering*, the marks-as-reference idea above is
-still the fallback.
+one glance, at speed, no instrument and no detour. `TurnMesh` builds it.
+With the gate in place this stopped being a convenience: the rail is how
+you predict the gate's state before you reach it, rather than discovering
+it by running into it. If it still reads as being *told* rather than
+*discovering*, the marks-as-reference idea above is the fallback.
 
 ---
 

@@ -1,6 +1,6 @@
-# The curvature line — one-page design
+# The curvature line — one-page design (English)
 
-![Unbegotten one-page design: the curvature line, with the nine spaces, four threads and three endings](one-page.svg)
+![Unbegotten one-page design: the curvature line, with the nine spaces, four threads and three endings](one-page.en.svg)
 
 ---
 
@@ -46,10 +46,13 @@ contrast budget applied to a document — and curvature is encoded by *value*,
 darkening left to right, which is also simply true of how light behaves in
 the Sprawl.
 
-`one-page.svg` is plain SVG with presentation attributes only — no `<style>`,
+`one-page.en.svg` is plain SVG with presentation attributes only — no `<style>`,
 no scripts, no webfonts, no external references — so GitHub renders it intact
 in both the file view and this page, `outline-sync` can carry it into Outline,
 and it prints as vector at any size. It is text, so it diffs like code.
+
+A French edition is kept alongside it at [one-page.fr.md](one-page.fr.md);
+the two are the same design and have to be changed together.
 
 **Date it when you change it.** The revision stamp is top-right, and it is
 Librande's rule rather than a flourish: a one-pager on a wall is worthless if
