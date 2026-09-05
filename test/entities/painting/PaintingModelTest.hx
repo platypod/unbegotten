@@ -50,4 +50,21 @@ class PaintingModelTest extends Test {
 
 		Assert.isFalse(painting.triggeredBy(far));
 	}
+
+	function testAPaintingTriggersOnApproachByDefault():Void {
+		var painting = new PaintingModel(new h3d.Vector(0, 0, 0), "hub");
+		Assert.isTrue(painting.triggersOnApproach);
+	}
+
+	function testAPaintingCanDeclareItselfADestinationRatherThanADoorway():Void {
+		// The Fold and the Weft never draw their exit, so its trigger volume
+		// was an unmarked patch of ground that threw the player out of the
+		// level. Such a painting still names where to go — the explicit exit
+		// key reads it — it just cannot fire by being walked past.
+		var painting = new PaintingModel(new h3d.Vector(0, 0, 0), "hub", null, false);
+
+		Assert.isFalse(painting.triggersOnApproach);
+		Assert.equals("hub", painting.destinationBiomeId);
+		Assert.isTrue(painting.triggeredBy(new h3d.Vector(0, 0, 0)), "proximity itself is unchanged; only whether GameLoop acts on it");
+	}
 }

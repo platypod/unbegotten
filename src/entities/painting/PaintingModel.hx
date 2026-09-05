@@ -30,6 +30,23 @@ class PaintingModel extends Entity {
 	public static inline final TRIGGER_DISTANCE:Float = 4;
 
 	/**
+		Whether walking near this painting warps the player out.
+
+		**`false` means "this is where I would go, not a thing you can walk
+		into".** Most biomes with a curved or generated floor never call
+		`buildQuad`, so their exit had a trigger volume and no geometry: the
+		player crossed an unmarked patch of ground and was thrown out of the
+		level with no warning and nothing to have avoided. Reported directly
+		as "invisible obstacles that get the player out of the level".
+
+		Such a painting still names the destination — `GameLoop`'s explicit
+		exit key reads it — it simply cannot fire by being walked past. A
+		painting that *is* drawn keeps the default, because there the trigger
+		is honest: something is visibly there and you chose to touch it.
+	**/
+	public var triggersOnApproach(default, null):Bool;
+
+	/**
 		Fraction of the wall's own length a painting's width spans — bigger
 		than the original `0.5` (half the wall, wide margins either side),
 		per "as big as the wall allows," but pulled back from an earlier
@@ -112,13 +129,15 @@ class PaintingModel extends Entity {
 	/**
 		@param position where this painting sits.
 		@param destinationBiomeId the `biomes.common.Biome.id()` walking into this painting leads to.
+		@param triggersOnApproach whether walking near it warps the player — `false` for a biome that declares a destination without drawing anything there. See the field's own doc.
 		@param triggerDistance how close the player needs to walk for it to trigger — defaults to `TRIGGER_DISTANCE`; a larger scene (e.g. a bigger hub) may need its own, since how close a player can physically get to a given mounting point scales with the room, not with this constant.
 	**/
-	public function new(position:h3d.Vector, destinationBiomeId:String, ?triggerDistance:Float) {
+	public function new(position:h3d.Vector, destinationBiomeId:String, ?triggerDistance:Float, triggersOnApproach:Bool = true) {
 		super();
 		this.position = position;
 		this.destinationBiomeId = destinationBiomeId;
 		this.triggerDistance = triggerDistance != null ? triggerDistance : TRIGGER_DISTANCE;
+		this.triggersOnApproach = triggersOnApproach;
 	}
 
 	/**

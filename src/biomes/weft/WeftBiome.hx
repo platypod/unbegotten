@@ -237,7 +237,9 @@ class WeftBiome implements Biome {
 	}
 
 	public function exitPaintings():Array<PaintingModel> {
-		return [new PaintingModel(PaintingModel.midpointOf(exitWall.a, exitWall.b), HubBiome.ID)];
+		return [
+			new PaintingModel(PaintingModel.midpointOf(exitWall.a, exitWall.b), HubBiome.ID, null, false)
+		];
 	}
 
 	public function tryMove(player:PlayerModel, direction:h3d.Vector, distance:Float):Void {

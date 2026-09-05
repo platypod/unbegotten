@@ -276,7 +276,7 @@ class GeodesicConwayBiome implements Biome {
 	public function exitPaintings():Array<PaintingModel> {
 		var neighbor = fineSphere.neighbors[spawnNode][0];
 		var exitPos = worldPositionOf(neighbor);
-		return [new PaintingModel(exitPos, HubBiome.ID)];
+		return [new PaintingModel(exitPos, HubBiome.ID, null, false)];
 	}
 
 	public function tryMove(player:PlayerModel, direction:h3d.Vector, distance:Float):Void {

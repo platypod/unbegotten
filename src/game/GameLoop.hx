@@ -230,7 +230,11 @@ class GameLoop {
 	**/
 	function checkPaintingTrigger():Void {
 		for (painting in currentBiome.exitPaintings()) {
-			if (painting.triggeredBy(player.pos)) {
+			// A painting nothing draws is a destination, not a doorway — see
+			// `PaintingModel.triggersOnApproach`. Walking through where one
+			// would have hung used to throw the player out of the level with
+			// nothing to have seen or avoided.
+			if (painting.triggersOnApproach && painting.triggeredBy(player.pos)) {
 				enterBiome(painting.destinationBiomeId, true);
 				return;
 			}
@@ -249,6 +253,23 @@ class GameLoop {
 		fresh (not `returning` — there's no meaningful "where they left off"
 		for an imported state).
 	**/
+	/**
+		Leaves for wherever the current biome's own exit painting leads.
+
+		Reads the destination off `exitPaintings` rather than hardcoding the
+		hub, so a biome that ever points somewhere else is followed rather
+		than overridden. A biome with no exit at all is left alone — there is
+		nowhere to send the player, and inventing one here would be a worse
+		bug than the one this fixes.
+	**/
+	function leaveBiome():Void {
+		var exits = currentBiome.exitPaintings();
+		if (exits.length == 0) {
+			return;
+		}
+		enterBiome(exits[0].destinationBiomeId, true);
+	}
+
 	function onMazeFileChosen(e:js.html.Event):Void {
 		var file = mazeFileInput.files[0];
 		if (file == null) {
@@ -383,6 +404,10 @@ class GameLoop {
 		if (hxd.Key.isPressed(Keybinds.IMPORT_MAZE)) {
 			promptImportMaze();
 		}
+		if (hxd.Key.isPressed(Keybinds.LEAVE_BIOME)) {
+			leaveBiome();
+		}
+
 		if (hxd.Key.isPressed(Keybinds.CAPTURE_SCREENSHOT)) {
 			captureRequested = true;
 		}

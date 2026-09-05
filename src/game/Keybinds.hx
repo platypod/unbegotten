@@ -52,6 +52,19 @@ class Keybinds {
 	**/
 	public static inline final INTERACT:Int = hxd.Key.E;
 
+	/**
+		Leaves the current biome for wherever its own exit leads, without
+		having to find the exit.
+
+		Added when the undrawn exit paintings stopped triggering on approach
+		(see `entities.painting.PaintingModel.triggersOnApproach`): those
+		were the only way out of their biomes, so removing the accidental
+		exit had to come with a deliberate one or the player would simply be
+		stuck. Works everywhere, including biomes whose exit *is* drawn —
+		there is no reason to make leaving harder than arriving.
+	**/
+	public static inline final LEAVE_BIOME:Int = hxd.Key.BACKSPACE;
+
 	/** Downloads a PNG of the current view, for documentation captures — see `GameLoop.captureIfRequested`. **/
 	public static inline final CAPTURE_SCREENSHOT:Int = hxd.Key.P;
 
