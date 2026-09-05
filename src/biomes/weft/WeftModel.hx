@@ -218,25 +218,194 @@ class WeftModel {
 	static inline final HINGE_SHARE:Float = 0.22;
 
 	/**
-		Whether this wall is one the player may open.
+		The key a wall and its antipodal partner are *both* filed under — the
+		lower of the two edge keys — or null if the wall has no partner.
 
-		Decided on the **canonical** key of the pair — the lower of the two
-		edge keys — not on this edge's own, so a wall and its antipodal
-		partner always agree about being hinged. They must: toggling either
-		moves both, and a hinge whose partner was fixed would let the player
-		change a wall the rule says they cannot.
+		Everything about hinges is decided on this key rather than on each
+		edge's own, so a wall and its partner always agree about being
+		hinged. They must: `toggle` moves both, and a hinge whose partner
+		was fixed would let the player change a wall the rule forbids.
+		@param a one end of the wall.
+		@param b the other end.
+		@return the pair's canonical key, or null for an unpaired wall.
+	**/
+	public static function canonicalKeyOf(a:GridNode, b:GridNode):Null<String> {
+		var partner = partnerOf(a, b);
+		if (partner == null) {
+			return null; // unpaired walls were never the player's to move
+		}
+		var mine = GridModel.edgeKey(a, b);
+		var theirs = GridModel.edgeKey(partner.a, partner.b);
+		return mine < theirs ? mine : theirs;
+	}
+
+	/**
+		Whether this wall is one the player may open, per a layout's own
+		hinge set.
+		@param hinges that layout's hinges, from `hingesFor`.
 		@param a one end of the wall.
 		@param b the other end.
 		@return true if this wall is hinged.
 	**/
-	public static function isHinged(a:GridNode, b:GridNode):Bool {
-		var partner = partnerOf(a, b);
-		if (partner == null) {
-			return false; // unpaired walls were never the player's to move
+	public static function isHinged(hinges:Map<String, Bool>, a:GridNode, b:GridNode):Bool {
+		var key = canonicalKeyOf(a, b);
+		return key != null && hinges.exists(key);
+	}
+
+	/**
+		Which walls this layout's player may open: `HINGE_SHARE` of the
+		paired walls picked by hash, **plus whatever it takes to make every
+		waypoint reachable**.
+
+		**The repair is not optional.** `enforceOpposite` has never
+		guaranteed connectivity — complementing half a spanning tree's edges
+		leaves sealed pockets, and its own doc shrugged that off because
+		"a player enclosed anywhere paired can always toggle their way out."
+		Making walls mostly fixed took that escape away, and measuring the
+		result (30 layouts, `WeftModel`'s own numbers: 4.6 connected
+		components, the largest holding 190 of 240 cells) found the beacon
+		or the exit stranded in **2 layouts in 30** — an unwinnable level
+		about once every fifteen visits.
+
+		So: Dijkstra from the first waypoint over the whole grid, where an
+		open or already-hinged wall costs nothing to cross and a fixed
+		*pairable* one costs 1 (an unpaired wall can never be opened at all,
+		so it stays impassable), then hinge every wall on the cheapest path
+		to each remaining waypoint. Cheapest is what keeps the scarcity: the
+		repair spends the fewest new hinges that make the level solvable,
+		and spends none at all on the layouts that were already fine.
+
+		This is the "carve, complement, then **repair**" that
+		`enforceOpposite`'s own doc predicted a Weft with an authored puzzle
+		would need.
+		@param grid the layout to compute hinges for.
+		@param waypoints the places that must be mutually reachable, the first being where the player starts.
+		@param locked edge keys the player cannot open directly (a gate's lock, `WeftBiome.isLocked`) — the repair routes around these rather than through them, since a route that depends on one is a route the player cannot simply walk.
+		@return the hinge set, keyed by `canonicalKeyOf`.
+	**/
+	public static function hingesFor(grid:GridData, waypoints:Array<GridNode>, ?locked:Map<String, Bool>):Map<String, Bool> {
+		var closedToRepair = locked != null ? locked : new Map<String, Bool>();
+		var hinges = new Map<String, Bool>();
+		for (node in GridModel.allNodes()) {
+			for (neighbor in GridModel.neighborsOf(node)) {
+				var key = canonicalKeyOf(node, neighbor);
+				if (key != null && hashOf(key) < HINGE_SHARE) {
+					hinges.set(key, true);
+				}
+			}
 		}
-		var mine = GridModel.edgeKey(a, b);
-		var theirs = GridModel.edgeKey(partner.a, partner.b);
-		return hashOf(mine < theirs ? mine : theirs) < HINGE_SHARE;
+		if (waypoints.length == 0) {
+			return hinges;
+		}
+		for (index in 1...waypoints.length) {
+			repairRoute(grid, hinges, closedToRepair, waypoints[0], waypoints[index]);
+		}
+		return hinges;
+	}
+
+	/**
+		Hinges the cheapest chain of fixed walls between two nodes, if any
+		is needed — see `hingesFor`.
+
+		Plain O(n²) Dijkstra rather than anything cleverer: the grid is 240
+		cells, this runs once per layout, and the shape of the cost function
+		(0 for a wall you can already cross, 1 for one you would have to
+		hinge) is easier to read stated directly than folded into a
+		0-1-BFS deque.
+		@param grid the layout being repaired.
+		@param hinges the hinge set, added to in place.
+		@param locked walls the repair must route around — see `hingesFor`.
+		@param from where the player starts.
+		@param to the waypoint that must be reachable.
+	**/
+	static function repairRoute(grid:GridData, hinges:Map<String, Bool>, locked:Map<String, Bool>, from:GridNode, to:GridNode):Void {
+		var nodes = GridModel.allNodes();
+		var byKey = new Map<String, GridNode>();
+		var dist = new Map<String, Float>();
+		var previous = new Map<String, GridNode>();
+		var settled = new Map<String, Bool>();
+		for (node in nodes) {
+			byKey.set(GridModel.nodeKey(node), node);
+			dist.set(GridModel.nodeKey(node), Math.POSITIVE_INFINITY);
+		}
+		dist.set(GridModel.nodeKey(from), 0);
+
+		while (true) {
+			var nearestKey:Null<String> = null;
+			var nearest = Math.POSITIVE_INFINITY;
+			for (node in nodes) {
+				var key = GridModel.nodeKey(node);
+				if (settled.exists(key)) {
+					continue;
+				}
+				var d = dist.get(key);
+				if (d != null && d < nearest) {
+					nearest = d;
+					nearestKey = key;
+				}
+			}
+			if (nearestKey == null) {
+				return; // every reachable node settled, and `to` was not among them
+			}
+			settled.set(nearestKey, true);
+			if (nearestKey == GridModel.nodeKey(to)) {
+				break;
+			}
+			var here = byKey.get(nearestKey);
+			if (here == null) {
+				return;
+			}
+			for (neighbor in GridModel.neighborsOf(here)) {
+				var step = costOf(grid, hinges, locked, here, neighbor);
+				if (step == null) {
+					continue; // a wall nothing can ever open
+				}
+				var neighborKey = GridModel.nodeKey(neighbor);
+				var known = dist.get(neighborKey);
+				if (known != null && nearest + step < known) {
+					dist.set(neighborKey, nearest + step);
+					previous.set(neighborKey, here);
+				}
+			}
+		}
+
+		var at = to;
+		while (GridModel.nodeKey(at) != GridModel.nodeKey(from)) {
+			var back = previous.get(GridModel.nodeKey(at));
+			if (back == null) {
+				return; // unreachable even through every hingeable wall — see `hingesFor`
+			}
+			var key = canonicalKeyOf(back, at);
+			if (key != null) {
+				hinges.set(key, true);
+			}
+			at = back;
+		}
+	}
+
+	/**
+		What crossing this wall costs the repair: nothing if it is already
+		open or already hinged, 1 if hinging it would open the way, and null
+		if no rule in this space can ever open it.
+		@param grid the layout being repaired.
+		@param hinges the hinge set so far.
+		@param locked walls the repair must route around — see `hingesFor`.
+		@param a one end of the wall.
+		@param b the other end.
+		@return the crossing cost, or null if impassable.
+	**/
+	static function costOf(grid:GridData, hinges:Map<String, Bool>, locked:Map<String, Bool>, a:GridNode, b:GridNode):Null<Float> {
+		if (GridModel.isOpen(grid, a, b)) {
+			return 0;
+		}
+		if (locked.exists(GridModel.edgeKey(a, b))) {
+			return null; // a gate's lock: it opens, but not for a player standing next to it
+		}
+		var key = canonicalKeyOf(a, b);
+		if (key == null) {
+			return null;
+		}
+		return hinges.exists(key) ? 0 : 1;
 	}
 
 	/**

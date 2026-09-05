@@ -141,6 +141,17 @@ class WeftBiome implements Biome {
 	var maze:GridData;
 
 	/**
+		Which of this layout's walls will open for the player — see
+		`WeftModel.hingesFor`, which also guarantees the beacon and the exit
+		are among the places its hinges can reach.
+
+		Derived, not saved: `reload` recomputes it from the layout, so a
+		maze restored from a file gets exactly the hinges it would have had
+		when generated.
+	**/
+	var hinges:Map<String, Bool>;
+
+	/**
 		Whether the player has reached the beacon, which is what opens the
 		way out.
 
@@ -190,6 +201,18 @@ class WeftBiome implements Biome {
 			}
 		}
 		gates = built;
+
+		// Last, and after the gates: the gates close walls, so hinges have
+		// to be computed against the layout the player will actually meet.
+		var locks = new Map<String, Bool>();
+		for (gate in gates) {
+			locks.set(GridModel.edgeKey(gate.lock.a, gate.lock.b), true);
+		}
+		hinges = WeftModel.hingesFor(maze, [
+			GridModel.nodeAt(SPAWN_THETA, SPAWN_PHI),
+			WeftModel.beaconNode(),
+			WeftModel.exitNode()
+		], locks);
 	}
 
 	public function id():String {
@@ -406,7 +429,7 @@ class WeftBiome implements Biome {
 		}
 		// Most walls are simply walls now. When every one was a door the
 		// maze had no structure at all — see `WeftModel.HINGE_SHARE`.
-		if (!WeftModel.isHinged(here, facing)) {
+		if (!WeftModel.isHinged(hinges, here, facing)) {
 			return;
 		}
 		if (WeftModel.toggle(maze, here, facing)) {

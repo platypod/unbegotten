@@ -195,7 +195,18 @@ space's legibility law is that you can see the far side, and an objective
 you cannot see across the interior is one the space has hidden from its
 own instrument.
 
-Open: whether one hinge in five is the right scarcity, whether hinges
+Hinges are computed per layout, not per wall, and this matters: the
+sphere the Weft generates is *not connected* — complementing a spanning
+tree leaves around four or five separate components — and with most walls
+fixed that used to strand the beacon or the exit in roughly one visit in
+fifteen. `WeftModel.hingesFor` therefore picks its share by hash and then
+**repairs**, hinging the cheapest chain of fixed walls needed to join the
+spawn, the beacon and the exit. See
+[changelog.md](../archive/changelog.md).
+
+Open: whether one hinge in five is the right scarcity, whether the repair
+should take a *random* route rather than the cheapest one (the cheapest is
+close to a geodesic, so systematic probing follows it), whether hinges
 should eventually be *visible* as a distinct wall dialect (deferred on
 purpose — hunting for them unmarked may be the interesting part, or the
 tedious one), and whether the gates still earn their place.

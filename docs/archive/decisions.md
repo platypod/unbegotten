@@ -1897,3 +1897,33 @@ in [storylines/](../game/README.md).
   ([CLAUDE.md](../../CLAUDE.md)); and here the whole question is a
   judgment call no test can make: whether one hinge in five is scarce
   enough to make a maze and loose enough to leave a route.
+
+- **2026-09-06 — Hinges as a pure hash of the edge key — REJECTED the same
+  day it shipped**, in favour of per-layout hinge sets with a repair pass
+  (`WeftModel.hingesFor`).
+
+  A hash is stateless, deterministic and needs nothing stored, which is why
+  it was the first cut. It is also blind to the layout, and the Weft's
+  layouts are not connected: `enforceOpposite` complements a spanning tree,
+  and a spanning tree's complement is not one — 4.6 components over 30
+  layouts, largest holding 190 of 240 cells. With most walls fixed, the
+  beacon or the exit was stranded in 2 layouts in 30. See
+  [changelog.md](changelog.md).
+
+  Rejected alternatives: **raising `HINGE_SHARE`** until strandings became
+  rare (rejected — it trades the whole point of the change against a bug it
+  only makes less likely, and "rare" is still an unwinnable level someone
+  eventually gets); **repairing the maze instead of the hinges**, opening
+  walls until the sphere is connected (rejected — that would fight
+  `enforceOpposite`, since opening a wall closes its antipode, and the
+  fragmentation is a *consequence* of the invariant rather than a defect in
+  the carve); **checking solvability and regenerating** on failure (rejected
+  — it is a rejection-sampling loop with no bound, and it discards a
+  perfectly good layout over one unreachable cell).
+
+  The repair takes the *cheapest* route, which is worth revisiting: it means
+  the guaranteed solution is close to a geodesic from spawn to beacon, so a
+  player who learns to probe systematically is following a near-straight
+  chain of hinges. Adding slack — repairing along a random path rather than
+  a shortest one — is the obvious next knob, and is deliberately not taken
+  yet, since a level nobody has played is the wrong place to start tuning.

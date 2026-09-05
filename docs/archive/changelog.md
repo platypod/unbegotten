@@ -52,3 +52,29 @@ guessed. Fixed twice over: `no-cache` on `index.html` and `game.js` so
 they are revalidated rather than guessed at (`v0.16.1`), then a content
 hash in the bundle's own filename so a new build is a new URL and the stale
 one simply 404s (`v0.16.2`, commit `cd862b5`).
+
+## 2026-09-06 — The Weft could generate an unwinnable level
+
+Found by measurement, not by play, within the hour of shipping
+`v0.16.3-dev.1`. `WeftModel.enforceOpposite` has never guaranteed
+connectivity: it carves a spanning tree in the north and forces the south to
+its complement, and a spanning tree's complement is not a spanning tree —
+over 30 generated layouts the sphere came out in 4.6 connected components,
+the largest holding 190 of its 240 cells. That was survivable while *every*
+paired wall opened on demand, and `enforceOpposite`'s own doc said so:
+"a player enclosed anywhere paired can always toggle their way out."
+
+`WeftModel.HINGE_SHARE` (same day) made roughly four walls in five permanently
+fixed, which removed exactly that escape without anyone noticing the
+dependency. Measured over 30 layouts, the beacon or the exit was walled off
+from the spawn in **2 of them** — an unwinnable Weft about once every fifteen
+visits.
+
+Fixed by making hinges per-layout state rather than a pure hash of the edge
+key: `WeftModel.hingesFor` picks `HINGE_SHARE` of the paired walls as before,
+then repairs, running Dijkstra from the spawn where an open or already-hinged
+wall costs nothing and a fixed pairable one costs 1, and hinging every wall on
+the cheapest path to the beacon and to the exit. A gate's lock counts as
+impassable, so the repair never hands the player a route that depends on one.
+30 of 30 layouts now solvable; the cost is ~27 extra hinges per layout, taking
+the hinged share of pairable walls from 19% to 31%. Shipped in `v0.16.3-dev.2`.

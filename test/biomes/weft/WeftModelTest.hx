@@ -383,6 +383,9 @@ class WeftModelTest extends Test {
 		// They must: toggling either moves both, so a hinge whose partner
 		// was fixed would let the player change a wall the rule says is not
 		// theirs to move.
+		var maze = MazeGenerator.generate();
+		WeftModel.enforceOpposite(maze);
+		var hinges = WeftModel.hingesFor(maze, waypoints());
 		var checked = 0;
 		for (node in GridModel.allNodes()) {
 			for (neighbor in GridModel.neighborsOf(node)) {
@@ -391,7 +394,7 @@ class WeftModelTest extends Test {
 					continue;
 				}
 				checked++;
-				Assert.equals(WeftModel.isHinged(node, neighbor), WeftModel.isHinged(partner.a, partner.b),
+				Assert.equals(WeftModel.isHinged(hinges, node, neighbor), WeftModel.isHinged(hinges, partner.a, partner.b),
 					'a wall and its partner disagree about being hinged');
 			}
 		}
@@ -401,7 +404,11 @@ class WeftModelTest extends Test {
 	function testHingesAreScarceButNotAbsent():Void {
 		// The whole point of the redesign: when every wall was a door the
 		// maze had no structure. Bounds rather than an exact figure, since
-		// the share is a tuning value.
+		// the share is a tuning value and `hingesFor`'s repair adds however
+		// many the layout needs on top of it.
+		var maze = MazeGenerator.generate();
+		WeftModel.enforceOpposite(maze);
+		var hinges = WeftModel.hingesFor(maze, waypoints());
 		var paired = 0;
 		var hinged = 0;
 		for (node in GridModel.allNodes()) {
@@ -410,23 +417,101 @@ class WeftModelTest extends Test {
 					continue;
 				}
 				paired++;
-				if (WeftModel.isHinged(node, neighbor)) {
+				if (WeftModel.isHinged(hinges, node, neighbor)) {
 					hinged++;
 				}
 			}
 		}
 		var share = hinged / paired;
 		Assert.isTrue(share > 0.05, 'only $share of paired walls are hinged — the space would be unsolvable');
-		Assert.isTrue(share < 0.45, 'as many as $share of paired walls are hinged — every wall is a door again');
+		Assert.isTrue(share < 0.55, 'as many as $share of paired walls are hinged — every wall is a door again');
+	}
+
+	/**
+		The beacon and the exit are reachable from the spawn, crossing open
+		walls and hinged ones and nothing else.
+
+		**The regression this exists for.** `enforceOpposite` has never
+		guaranteed connectivity — measured over 30 layouts it leaves 4.6
+		components, the largest holding 190 of 240 cells — and that was
+		survivable only while *every* paired wall opened on demand. Making
+		walls mostly fixed took that escape away and stranded the beacon or
+		the exit in 2 layouts in 30. Repeated, because the failure was
+		layout-dependent: a single maze passing proves nothing.
+	**/
+	function testEveryLayoutCanActuallyBeFinished():Void {
+		for (attempt in 0...25) {
+			var maze = MazeGenerator.generate();
+			WeftModel.enforceOpposite(maze);
+			var hinges = WeftModel.hingesFor(maze, waypoints());
+			var reachable = reachableFrom(maze, hinges, waypoints()[0]);
+			Assert.isTrue(reachable.exists(GridModel.nodeKey(WeftModel.beaconNode())), "the beacon is walled off from the spawn");
+			Assert.isTrue(reachable.exists(GridModel.nodeKey(WeftModel.exitNode())), "the exit is walled off from the spawn");
+		}
+	}
+
+	/** The repair only ever *adds* hinges, so every wall the hash picked is still one. **/
+	function testTheRepairNeverTakesAHingeAway():Void {
+		var maze = MazeGenerator.generate();
+		WeftModel.enforceOpposite(maze);
+		var base = WeftModel.hingesFor(maze, []);
+		var repaired = WeftModel.hingesFor(maze, waypoints());
+		for (key in base.keys()) {
+			Assert.isTrue(repaired.exists(key), 'the repair dropped hinge $key');
+		}
+	}
+
+	/** `WeftBiome`'s own spawn, beacon and exit — the three places a visit has to join up. **/
+	function waypoints():Array<GridNode> {
+		return [GridModel.nodeAt(1.35, 2.1), WeftModel.beaconNode(), WeftModel.exitNode()];
+	}
+
+	/**
+		Every cell the player can get to, crossing a wall that is either
+		already open or hinged. Flood fill rather than union-find: this is
+		240 cells and the fill is the thing being asserted about, so it
+		should be the obvious code.
+		@param maze the layout.
+		@param hinges that layout's hinges.
+		@param from where to start.
+		@return the node keys reachable from `from`.
+	**/
+	function reachableFrom(maze:GridData, hinges:Map<String, Bool>, from:GridNode):Map<String, Bool> {
+		var seen = new Map<String, Bool>();
+		seen.set(GridModel.nodeKey(from), true);
+		var frontier = [from];
+		while (frontier.length > 0) {
+			var here = frontier.pop();
+			if (here == null) {
+				break;
+			}
+			for (neighbor in GridModel.neighborsOf(here)) {
+				if (!GridModel.isOpen(maze, here, neighbor) && !WeftModel.isHinged(hinges, here, neighbor)) {
+					continue;
+				}
+				var key = GridModel.nodeKey(neighbor);
+				if (seen.exists(key)) {
+					continue;
+				}
+				seen.set(key, true);
+				frontier.push(neighbor);
+			}
+		}
+		return seen;
 	}
 
 	function testAnUnpairedWallIsNeverHinged():Void {
 		// The pole rows have no partner, so they were never the player's to
-		// move; hinging one would break the opposite-state invariant.
+		// move; hinging one would break the opposite-state invariant. Holds
+		// through the repair too, which is why the hinge set is built from
+		// `canonicalKeyOf` rather than from edge keys.
+		var maze = MazeGenerator.generate();
+		WeftModel.enforceOpposite(maze);
+		var hinges = WeftModel.hingesFor(maze, waypoints());
 		for (node in GridModel.allNodes()) {
 			for (neighbor in GridModel.neighborsOf(node)) {
 				if (WeftModel.partnerOf(node, neighbor) == null) {
-					Assert.isFalse(WeftModel.isHinged(node, neighbor));
+					Assert.isFalse(WeftModel.isHinged(hinges, node, neighbor));
 				}
 			}
 		}
