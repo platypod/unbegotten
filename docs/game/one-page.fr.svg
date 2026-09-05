@@ -157,7 +157,7 @@
 <text x="1014" y="912" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#5A6874" text-anchor="end">■ partiel</text>
 <rect x="1048" y="530" width="504" height="152" fill="#0A0E16" stroke="#111A22" stroke-width="1"/>
 <rect x="1048" y="530" width="504" height="2" fill="#38E8FF"/>
-<text x="1062" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">Le Foisonnement</text>
+<text x="1062" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">La Prolifération</text>
 <text x="1062" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#5A6874">pavage heptagonal hyperbolique {7,3}</text>
 <text x="1062" y="604" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">Croissance exponentielle. Pas d’ensembles de</text>
 <text x="1062" y="623" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">Følner : tout est bordure, le théorème tombe.</text>

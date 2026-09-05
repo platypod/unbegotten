@@ -69,10 +69,13 @@ Le vocabulaire technique suit les termes français réels — *moyennable* pour
 *amenable*, *nature morte* pour *still life*, *planeur* pour *glider* — et
 non des anglicismes.
 
-**Encore ouverts :** *La Volte* (The Turn) et *Le Foisonnement* (The Sprawl)
-sont des titres de travail. *La Volte* dit le demi-tour d'escrime et de manège,
-d'où vient *volte-face* — juste de sens, mais soudain, là où le retournement
-möbien est graduel et se produit sans qu'on le remarque. *Le Défaut* et *Le Ruban* aussi, plus faiblement :
+**Encore ouverts :** *La Volte* (The Turn) et *La Prolifération* (The Sprawl)
+sont des titres de travail, à revoir selon ce que ces deux espaces deviennent.
+*La Volte* dit le demi-tour d'escrime et de manège, d'où vient *volte-face* —
+juste de sens, mais soudain, là où le retournement möbien est graduel et se
+produit sans qu'on le remarque. *La Prolifération* dit la multiplication qui
+gagne du terrain, ce que *L'Étalement* (trop administratif) et *Le
+Foisonnement* (trop plaisant) ne disaient pas. *Le Défaut* et *Le Ruban* aussi, plus faiblement :
 *La Faille* dirait mieux le défaut mais évoque une fissure linéaire là où il
 s'agit d'un point, et *La Frise* dirait la ligne du temps si cet espace la
 rendait un jour visible.
