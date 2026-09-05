@@ -18,7 +18,7 @@ test:     ## Run the utest suite
 
 build:    ## Production web build: bin/ becomes a self-contained static web root
 	haxe build.hxml
-	cp index.html bin/index.html
+	sh stamp.sh
 
 bake-geodesic: ## Regenerate the baked geodesic sphere data asset (res/geodesic/)
 	haxe bake.hxml

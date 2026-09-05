@@ -4,8 +4,8 @@ WORKDIR /app
 RUN haxelib install heaps --always
 COPY src/ ./src/
 COPY res/ ./res/
-COPY build.hxml index.html ./
-RUN haxe build.hxml && cp index.html bin/index.html
+COPY build.hxml index.html stamp.sh ./
+RUN haxe build.hxml && sh stamp.sh
 
 # --- Static server ---
 FROM nginx:alpine
