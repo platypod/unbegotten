@@ -13,8 +13,13 @@ page, the less it constrains what you do next.
 
 ## If you read one thing
 
-**[game/README.md](game/README.md)** — the premise, the pillars, the
-pitch. Everything else in `game/` expands one part of it.
+**[game/one-page.md](game/one-page.md)** — the whole design as a single
+annotated image: the curvature axis, the nine spaces, the four threads and
+the three endings. Built to be looked at rather than read, and to be printed
+and pinned up. Everything below expands one part of it.
+
+**[game/README.md](game/README.md)** — the premise, the pillars, the pitch,
+in prose.
 
 ---
 
@@ -24,7 +29,8 @@ The whole-game direction. All nine of its spaces are built and walkable.
 
 | File | Holds |
 |---|---|
-| [README.md](game/README.md) | The premise, the pillars, the pitch — start here |
+| [one-page.md](game/one-page.md) | **The whole design on one page**, as a diagram — start here |
+| [README.md](game/README.md) | The premise, the pillars, the pitch, in prose |
 | [story.md](game/story.md) | Garden of Eden: the chosen storyline |
 | [world.md](game/world.md) | The nine spaces: what each *is*, teaches, and looks like |
 | [systems.md](game/systems.md) | The verbs, and how knowledge gates progress without a journal |
