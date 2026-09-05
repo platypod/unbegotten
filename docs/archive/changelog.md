@@ -38,3 +38,17 @@ died on the first frame, the canvas' bounding rect never changed again, and the
 `ResizeObserver` Heaps installs on it never fired. Fixed by sizing the canvas
 inline in `index.html`/`walk.html` so the browser's layout owns it and Heaps
 only reads it; no Haxe change was needed. Commit: `118c071`.
+
+## 2026-09-05 — Browsers served a stale bundle after every release
+
+A deployed release kept showing the previous build until a hard reload. The
+image shipped no nginx config, so it used `nginx:alpine`'s stock default:
+`Last-Modified` and `ETag`, but no `Cache-Control` at all. With no
+`Cache-Control`, a browser falls back to *heuristic caching* — it invents a
+freshness lifetime, conventionally about 10% of the age since
+`Last-Modified`, and reuses the file without asking. Nothing was
+misconfigured; the server never said anything about caching, so the browser
+guessed. Fixed twice over: `no-cache` on `index.html` and `game.js` so
+they are revalidated rather than guessed at (`v0.16.1`), then a content
+hash in the bundle's own filename so a new build is a new URL and the stale
+one simply 404s (`v0.16.2`, commit `cd862b5`).
