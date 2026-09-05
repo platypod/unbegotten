@@ -199,6 +199,84 @@ class WeftModel {
 	}
 
 	/**
+		Fraction of paired walls that are **hinged** — the only ones the
+		player may open.
+
+		**This is the fix for a space that had no difficulty.** Every
+		pairable wall used to be toggleable, so every wall was a door on
+		demand and the maze had walls but no structure: nothing constrained
+		a route because any obstacle yielded to a keypress. The keystone
+		gates were bolted on to supply the friction the base rule was not
+		providing, which is a patch rather than a mechanic.
+
+		With hinges scarce, the fixed walls make a real maze and the hinges
+		become the scarce resource the space is actually about. It also
+		gives the pairing rule teeth at last: a hinge you spend to get
+		through here is a hinge that has *closed* at your antipode, on the
+		route you have to walk back along.
+	**/
+	static inline final HINGE_SHARE:Float = 0.22;
+
+	/**
+		Whether this wall is one the player may open.
+
+		Decided on the **canonical** key of the pair — the lower of the two
+		edge keys — not on this edge's own, so a wall and its antipodal
+		partner always agree about being hinged. They must: toggling either
+		moves both, and a hinge whose partner was fixed would let the player
+		change a wall the rule says they cannot.
+		@param a one end of the wall.
+		@param b the other end.
+		@return true if this wall is hinged.
+	**/
+	public static function isHinged(a:GridNode, b:GridNode):Bool {
+		var partner = partnerOf(a, b);
+		if (partner == null) {
+			return false; // unpaired walls were never the player's to move
+		}
+		var mine = GridModel.edgeKey(a, b);
+		var theirs = GridModel.edgeKey(partner.a, partner.b);
+		return hashOf(mine < theirs ? mine : theirs) < HINGE_SHARE;
+	}
+
+	/**
+		The node the beacon stands on — in the northern hemisphere, and the
+		first of the space's two objectives.
+
+		**The exit is at its antipode**, which is what makes this space one
+		puzzle rather than a maze with a rule attached. The route you carve
+		north to reach the beacon is, edge for edge, the route that has
+		*closed* in the south — so your way out is the wreckage of your way
+		in, and you have to plan the first journey knowing it builds the
+		second.
+	**/
+	public static function beaconNode():GridNode {
+		return GridModel.nodeAt(BEACON_THETA, BEACON_PHI);
+	}
+
+	/** Where the way out stands: the beacon's own antipode, and therefore in the southern hemisphere. **/
+	public static function exitNode():GridNode {
+		return antipodeOf(beaconNode());
+	}
+
+	/** Polar angle of the beacon. Well north of the equator, so its antipode is well south and the two journeys are genuinely separate. **/
+	static inline final BEACON_THETA:Float = 0.72;
+
+	/** Azimuth of the beacon. **/
+	static inline final BEACON_PHI:Float = 1.1;
+
+	/** A stable value in `[0, 1)` from an edge key — the same shape of hash the other biomes use, over a string rather than coordinates. **/
+	static function hashOf(key:String):Float {
+		var h:Int = 0x811C9DC5;
+		for (index in 0...key.length) {
+			var c:Int = key.charCodeAt(index);
+			h = ((h ^ c) * 16777619) & 0x7FFFFFFF;
+		}
+		h = (h ^ (h >> 15)) & 0x7FFFFFFF;
+		return h / 2147483648.0;
+	}
+
+	/**
 		Flips one wall, and its partner with it — so the invariant survives
 		and, from the player's side, **closing a wall here opens the one at
 		its antipode**.

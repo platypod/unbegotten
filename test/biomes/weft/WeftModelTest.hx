@@ -376,4 +376,77 @@ class WeftModelTest extends Test {
 		}
 		Assert.pass(); // a grid with no unpaired walls at all would be fine too
 	}
+
+	// --- Hinges and the two objectives (2026-09-06 redesign).
+
+	function testAWallAndItsAntipodalPartnerAgreeAboutBeingHinged():Void {
+		// They must: toggling either moves both, so a hinge whose partner
+		// was fixed would let the player change a wall the rule says is not
+		// theirs to move.
+		var checked = 0;
+		for (node in GridModel.allNodes()) {
+			for (neighbor in GridModel.neighborsOf(node)) {
+				var partner = WeftModel.partnerOf(node, neighbor);
+				if (partner == null) {
+					continue;
+				}
+				checked++;
+				Assert.equals(WeftModel.isHinged(node, neighbor), WeftModel.isHinged(partner.a, partner.b),
+					'a wall and its partner disagree about being hinged');
+			}
+		}
+		Assert.isTrue(checked > 0, "no paired walls were checked at all");
+	}
+
+	function testHingesAreScarceButNotAbsent():Void {
+		// The whole point of the redesign: when every wall was a door the
+		// maze had no structure. Bounds rather than an exact figure, since
+		// the share is a tuning value.
+		var paired = 0;
+		var hinged = 0;
+		for (node in GridModel.allNodes()) {
+			for (neighbor in GridModel.neighborsOf(node)) {
+				if (WeftModel.partnerOf(node, neighbor) == null) {
+					continue;
+				}
+				paired++;
+				if (WeftModel.isHinged(node, neighbor)) {
+					hinged++;
+				}
+			}
+		}
+		var share = hinged / paired;
+		Assert.isTrue(share > 0.05, 'only $share of paired walls are hinged — the space would be unsolvable');
+		Assert.isTrue(share < 0.45, 'as many as $share of paired walls are hinged — every wall is a door again');
+	}
+
+	function testAnUnpairedWallIsNeverHinged():Void {
+		// The pole rows have no partner, so they were never the player's to
+		// move; hinging one would break the opposite-state invariant.
+		for (node in GridModel.allNodes()) {
+			for (neighbor in GridModel.neighborsOf(node)) {
+				if (WeftModel.partnerOf(node, neighbor) == null) {
+					Assert.isFalse(WeftModel.isHinged(node, neighbor));
+				}
+			}
+		}
+	}
+
+	function testTheExitIsTheBeaconsOwnAntipode():Void {
+		// The space is one puzzle only because of this: the route carved to
+		// reach the beacon is the route closed on the way out.
+		var beacon = WeftModel.beaconNode();
+		var exit = WeftModel.exitNode();
+
+		Assert.equals(GridModel.nodeKey(WeftModel.antipodeOf(beacon)), GridModel.nodeKey(exit));
+		Assert.isFalse(GridModel.nodeKey(beacon) == GridModel.nodeKey(exit), "the beacon and the exit are the same place");
+	}
+
+	function testTheBeaconAndExitSitInOppositeHemispheres():Void {
+		var beacon = GridModel.centerOf(WeftModel.beaconNode());
+		var exit = GridModel.centerOf(WeftModel.exitNode());
+		var half = Math.PI / 2;
+
+		Assert.isTrue((beacon.theta < half) != (exit.theta < half), 'beacon theta ${beacon.theta} and exit theta ${exit.theta} are on the same side');
+	}
 }

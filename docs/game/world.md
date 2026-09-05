@@ -155,11 +155,9 @@ sealKeystoneGates` seals up to a few leaf cells into vaults, each
 reachable through exactly one wall, and that one wall — unlike every
 other wall in the biome — refuses to open for a player standing next to
 it (`WeftBiome.isLocked`). It still obeys the pairing rule underneath, so
-it still opens the instant its antipodal partner (an ordinary,
-freely-toggleable wall) is closed — closing a door across the world is
-the *only* way to open this one. The first gate's exit painting moved
-into its vault, so leaving the Weft at all requires solving *that one*;
-any further gates are optional side-vaults. Made deliberately "too
+it still opens the instant its antipodal partner is closed — closing a
+door across the world is the *only* way to open this one. Made
+deliberately "too
 obvious" for now: each gate's lock and partner render in flat stop/go
 red and green (`Colours.WEFT_GATE_LOCK`/`WEFT_GATE_KEY`), standing apart
 from the uniform Fold-cyan everywhere else, with matching beacons
@@ -167,7 +165,40 @@ marking both ends even while a wall isn't currently there to color
 (`WeftBiome.buildKeystoneMarkers`) — visible from across the sphere the
 same "raise your head, see far" way any other distant geometry is. To be
 revisited toward something subtler once the mechanic itself is proven
-out.
+out. (The gates no longer gate the exit — see below — so they are all
+side-vaults now, and may well be redundant once hinges are scarce.)
+
+**Hinges and the antipodal exit (2026-09-06), against the verdict that
+the space "presents no challenge at all since the player can remove
+pretty much all of the walls."** Two changes, one design.
+
+*Most walls are now fixed.* Roughly one paired wall in five is **hinged**
+and will open for the player; the rest are simply walls
+(`WeftModel.HINGE_SHARE`/`isHinged`). The old rule — every pairable wall
+a door on demand — meant the maze had walls but no structure, since no
+obstacle constrained a route. Hinges being scarce is what makes the fixed
+walls a maze at last, and makes a hinge a thing worth spending. A wall
+and its partner always agree about being hinged (the decision is taken on
+the pair's canonical edge key, not each edge's own); they have to, since
+toggling either moves both.
+
+*The exit is the beacon's antipode.* A beacon stands in the north; the
+way out stands at its exact antipode in the south, dead until the beacon
+has been reached (`WeftModel.beaconNode`/`exitNode`,
+`WeftBiome.beaconReached`, per visit). This is the space's own rule
+restated as a route: **the way you carve north is the way you close
+south**, so the exit you have to reach is the one your first journey has
+been quietly demolishing behind you. Both objectives carry beacons in the
+signal palette — the beacon `SIGNAL_MARK` and going inert once reached,
+the exit `SIGNAL_DENY` until then and `SIGNAL_ACT` after — because this
+space's legibility law is that you can see the far side, and an objective
+you cannot see across the interior is one the space has hidden from its
+own instrument.
+
+Open: whether one hinge in five is the right scarcity, whether hinges
+should eventually be *visible* as a distinct wall dialect (deferred on
+purpose — hunting for them unmarked may be the interesting part, or the
+tedious one), and whether the gates still earn their place.
 
 Findings, none predictable from the design:
 

@@ -10,10 +10,10 @@ import biomes.common.grid.GridModel.GridNode;
 import biomes.common.space.sphere.SphereMath;
 import biomes.hub.HubBiome;
 import biomes.maze.MazeExitWall;
-import biomes.maze.MazeExitWall.FoundWall;
 import biomes.maze.MazeGenerator;
 import biomes.weft.WeftModel.WeftGate;
 import entities.painting.PaintingModel;
+import graphics.Colours;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
 
@@ -50,9 +50,11 @@ import entities.player.PlayerModel;
 	It is the instrument the whole space is read with: act on a wall,
 	watch the echo's surroundings change.
 
-	**What this reuses, and what that says.** The grid, the collision and
-	the exit painting are the maze prototype's, untouched — this space
-	needed no new topology, only a rule laid over an existing one. The
+	**What this reuses, and what that says.** The grid and the collision
+	are the maze prototype's, untouched — this space needed no new
+	topology, only a rule laid over an existing one. (The exit painting
+	was the prototype's too, until it moved onto the antipode of the
+	beacon; see `reload`.) The
 	render is not reused: `WeftMesh` replaces the prototype's grass and
 	stone with this space's own flat, hue-correct dialect, once that
 	mismatch with [art-and-audio.md](../../../docs/game/art-and-audio.md)
@@ -61,18 +63,32 @@ import entities.player.PlayerModel;
 	the hemisphere generation it now performs), `WeftMesh` (the dialect),
 	and the echo.
 
+	**The way out (2026-09-06).** Two objectives, one in each hemisphere:
+	a beacon north, and the exit at its exact antipode
+	(`WeftModel.beaconNode`/`exitNode`), dead until the beacon has been
+	reached. That is the point of the whole space stated as a route —
+	**the way you carve north is the way you close south**, so the exit
+	you have to walk to is one you have spent the first half of the visit
+	demolishing. Before this the exit was wherever a scan happened to put
+	it and the pairing rule was a curiosity you could ignore.
+
+	It only works because walls are now mostly *fixed*: see
+	`WeftModel.HINGE_SHARE`, raised against the verdict that this space
+	"presents no challenge at all since the player can remove pretty much
+	all of the walls". A maze in which every wall is a door on demand has
+	no structure to plan around, and no route worth closing.
+
 	**The gates (2026-08-18, generalized from a single one the same day).**
 	`WeftModel.sealKeystoneGates` seals up to `GATE_COUNT` walls shut; each
 	one, unlike every ordinary wall here, refuses to answer `interact`
 	directly (this class's own `isLocked`). A gate still obeys the pairing
 	rule underneath, so it still opens the instant its antipodal partner
 	closes — the player just cannot make that happen standing next to it.
-	The exit painting moves into the first gate's now-reachable vault, so
-	leaving the Weft at all requires solving *that one* once; any further
-	gates are optional side-vaults, not additional exit requirements.
 	Asked directly: "I'd like it if the user had to alternate between
 	direct view and antipodal view to figure out tricks and find the
-	way."
+	way." The gates no longer gate the exit — see `reload` — so they are
+	all side-vaults now, and the friction they were carrying comes from
+	`WeftModel.HINGE_SHARE` instead.
 
 	**Made "too obvious" on purpose, for now** (asked directly, to be
 	revisited toward something subtler once the mechanic itself is
@@ -109,17 +125,32 @@ class WeftBiome implements Biome {
 	/** How many gates `WeftModel.sealKeystoneGates` tries to place — untuned, a reasonable first guess ("several tricky moments," not one) rather than a measured value; the maze may legitimately end up with fewer, see that function's own doc. **/
 	static inline final GATE_COUNT:Int = 3;
 
+	/** How close the player must get to the beacon to arm the way out. **/
+	static inline final BEACON_REACH:Float = 7.0;
+
+	/** The beacon's own marker, and the exit's: tall enough to read across the sphere's interior, which is this space's whole instrument. **/
+	static inline final OBJECTIVE_MARKER_SIZE:Float = 4.2;
+
+	/** See `OBJECTIVE_MARKER_SIZE`. **/
+	static inline final OBJECTIVE_MARKER_HEIGHT:Float = 9;
+
 	static inline final SPAWN_THETA:Float = 1.35;
 	static inline final SPAWN_PHI:Float = 2.1;
 	static inline final SPAWN_FACING:Float = 0.0;
 
-	/** See `biomes.maze.MazeBiome.RETURN_SPAWN_OFFSET` — same reason, same value. **/
-	static inline final RETURN_SPAWN_OFFSET:Float = 6;
-
 	var maze:GridData;
-	var exitWall:FoundWall;
 
-	/** This maze's own sealed gates — see the class doc. Possibly empty, on the rare layout with no valid candidate at all, in which case there is no puzzle this playthrough and `exitWall` falls back to `MazeExitWall.find`'s ordinary scan. **/
+	/**
+		Whether the player has reached the beacon, which is what opens the
+		way out.
+
+		Per visit, not persisted: the space's point is the *journey* — the
+		route carved north is the route closed south — and arriving already
+		armed would skip the half that matters.
+	**/
+	var beaconReached:Bool = false;
+
+	/** This maze's own sealed gates — see the class doc. Possibly empty, on the rare layout with no valid candidate at all, in which case there are simply no vaults this playthrough; the exit is unaffected either way, see `reload`. **/
 	var gates:Array<WeftGate>;
 
 	/** The whole rebuildable world — replaced wholesale whenever a wall is toggled, since a flip changes geometry on two sides of the sphere at once. **/
@@ -132,33 +163,33 @@ class WeftBiome implements Biome {
 	}
 
 	/**
-		Adopts a layout, forces the opposite-rule invariant onto it, seals
-		up to `GATE_COUNT` vaults behind gates (if this layout has valid
-		candidates for any), and re-derives the exit.
+		Adopts a layout, forces the opposite-rule invariant onto it, and
+		seals up to `GATE_COUNT` vaults behind gates (if this layout has
+		valid candidates for any).
+
+		**The exit is no longer derived from the layout**; it stands at
+		`WeftModel.exitNode`, a fixed cell, and the layout has no say in
+		where it is. It used to be placed behind the first keystone gate,
+		which made the way out an accident of whichever vault the scan
+		happened to find first — and on a layout with no valid candidate at
+		all it fell back to `MazeExitWall.find`'s "first closed edge" scan,
+		i.e. somewhere arbitrary. Pinning it to the beacon's own antipode is
+		what turns this space into one puzzle: the exit is not *found*, it
+		is the place your first journey has been quietly closing behind you.
+		The gates stay, as ordinary locked walls.
 	**/
 	function reload(layout:GridData):Void {
 		WeftModel.enforceOpposite(layout);
 		maze = layout;
 
-		var candidates = WeftModel.sealKeystoneGates(maze, GATE_COUNT);
-		if (candidates.length == 0) {
-			gates = [];
-			exitWall = MazeExitWall.find(maze);
-			return;
-		}
-
 		var built:Array<WeftGate> = [];
-		for (candidate in candidates) {
+		for (candidate in WeftModel.sealKeystoneGates(maze, GATE_COUNT)) {
 			var gate = WeftModel.gateOf(candidate);
 			if (gate != null) {
 				built.push(gate);
 			}
 		}
 		gates = built;
-
-		var exit = candidates[0];
-		exitWall = MazeExitWall.wallAt(exit.vaultRow, exit.vaultCol,
-			!exit.lockIsWest); // the first vault's other west/east side — guaranteed closed, since the vault was a leaf with only the lock side open. Only this one gate gates the exit; any further gates are optional side-vaults.
 	}
 
 	public function id():String {
@@ -175,6 +206,7 @@ class WeftBiome implements Biome {
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
+		beaconReached = false; // per visit — see the field's own doc
 		world = new h3d.scene.Object(parent);
 		echo = buildEcho(parent);
 		rebuild();
@@ -197,6 +229,7 @@ class WeftBiome implements Biome {
 		container.removeChildren();
 		WeftMesh.build(maze, container, gates);
 		buildKeystoneMarkers(container);
+		buildObjectiveMarkers(container);
 	}
 
 	/**
@@ -232,13 +265,74 @@ class WeftBiome implements Biome {
 		batch.add(stand.x, stand.z, KEYSTONE_MARKER_SIZE, KEYSTONE_MARKER_SIZE, stand.y, KEYSTONE_MARKER_SIZE * 2);
 	}
 
-	public function spawnPlayer(returning:Bool, fromBiomeId:Null<String>):PlayerModel {
-		return returning ? playerInFrontOfExitWall() : PlayerModel.spawnAt(SPAWN_THETA, SPAWN_PHI, SPAWN_FACING, GridGeometry.RADIUS);
+	/**
+		The beacon and the way out, one in each hemisphere.
+
+		Colour carries their state, which is the only thing the player needs
+		to read from across the sphere: the beacon is a thing to reach
+		(`Colours.SIGNAL_MARK`, going inert once it has been), the exit is
+		refused until then (`Colours.SIGNAL_DENY`) and actionable after
+		(`Colours.SIGNAL_ACT`). Marking them at all matters here more than
+		elsewhere — this space's own legibility law is that you can see the
+		far side, so an objective you cannot see across the interior is an
+		objective the space has hidden from its own instrument.
+
+		One batch per marker rather than one for both, for the same reason
+		`buildKeystoneMarkers` uses two: a `game.BoxBatch` carries a single
+		color, and here the two colors are the whole message.
+		@param container the scene node to attach the markers under.
+	**/
+	function buildObjectiveMarkers(container:h3d.scene.Object):Void {
+		addObjectiveMarker(container, WeftModel.beaconNode(), beaconReached ? Colours.SURFACE_EDGE : Colours.SIGNAL_MARK);
+		addObjectiveMarker(container, WeftModel.exitNode(), beaconReached ? Colours.SIGNAL_ACT : Colours.SIGNAL_DENY);
 	}
 
+	/**
+		One objective marker, standing on a cell's own floor.
+
+		Offset *inward* (`sub`, not `add`) like `addKeystoneMarker`: the
+		player walks the inside of the sphere, so up from the floor points
+		toward the centre, and adding would bury the marker behind the wall
+		it stands on.
+		@param container the scene node to attach the marker under.
+		@param node the cell the marker stands in.
+		@param colour the marker's own fill — its state, see `buildObjectiveMarkers`.
+	**/
+	function addObjectiveMarker(container:h3d.scene.Object, node:GridNode, colour:Int):Void {
+		var batch = new game.BoxBatch(container, colour);
+		var stand = objectiveCentre(node).sub(objectiveCentre(node).normalized().scaled(OBJECTIVE_MARKER_HEIGHT));
+		batch.add(stand.x, stand.z, OBJECTIVE_MARKER_SIZE, OBJECTIVE_MARKER_SIZE, stand.y, OBJECTIVE_MARKER_HEIGHT);
+		batch.flush();
+	}
+
+	/**
+		Where a cell sits in the world — its own centre, on the sphere.
+		@param node the cell to place.
+		@return that cell's centre as a world position.
+	**/
+	static function objectiveCentre(node:GridNode):h3d.Vector {
+		var centre = GridModel.centerOf(node);
+		return SphereMath.sphericalToCartesian(GridGeometry.RADIUS, centre.theta, centre.phi);
+	}
+
+	public function spawnPlayer(returning:Bool, fromBiomeId:Null<String>):PlayerModel {
+		return returning ? playerAtExit() : PlayerModel.spawnAt(SPAWN_THETA, SPAWN_PHI, SPAWN_FACING, GridGeometry.RADIUS);
+	}
+
+	/**
+		The one way out, standing at `WeftModel.exitNode`.
+
+		**Always returned, but only live once the beacon has been reached.**
+		Two different things are being said: the painting exists at all times
+		so the debug leave key (`game.Keybinds.LEAVE_BIOME`) has somewhere to
+		send a developer, and `triggersOnApproach` carries the actual rule —
+		before the beacon, walking onto the exit does nothing, which is what
+		the red marker there has been saying. Returning `[]` instead would
+		have conflated the two and taken the escape hatch away with it.
+	**/
 	public function exitPaintings():Array<PaintingModel> {
 		return [
-			new PaintingModel(PaintingModel.midpointOf(exitWall.a, exitWall.b), HubBiome.ID, null, false)
+			new PaintingModel(objectiveCentre(WeftModel.exitNode()), HubBiome.ID, null, beaconReached)
 		];
 	}
 
@@ -261,6 +355,7 @@ class WeftBiome implements Biome {
 		@param dt unused — the echo has no dynamics of its own.
 	**/
 	public function tick(player:PlayerModel, dt:Float):Void {
+		checkBeacon(player);
 		var marker = echo;
 		if (marker == null) {
 			return;
@@ -269,6 +364,26 @@ class WeftBiome implements Biome {
 		var outward = opposite.normalized();
 		var stand = opposite.sub(outward.scaled(ECHO_HEIGHT));
 		marker.setPosition(stand.x, stand.y, stand.z);
+	}
+
+	/**
+		Arms the way out once the player stands at the beacon.
+
+		Rebuilds on the transition, since both markers change colour at that
+		moment — the beacon goes inert and the exit goes from refused to
+		actionable. Once only: `beaconReached` short-circuits every later
+		tick, so this is a distance test and nothing more for the rest of
+		the visit.
+		@param player the player to test against the beacon.
+	**/
+	function checkBeacon(player:PlayerModel):Void {
+		if (beaconReached) {
+			return;
+		}
+		if (player.pos.sub(objectiveCentre(WeftModel.beaconNode())).length() <= BEACON_REACH) {
+			beaconReached = true;
+			rebuild();
+		}
 	}
 
 	/**
@@ -287,6 +402,11 @@ class WeftBiome implements Biome {
 		var here = GridModel.nodeAt(SphereMath.thetaOf(player.pos), SphereMath.phiOf(player.pos));
 		var facing = mostFacedNeighbor(player, here);
 		if (facing == null || isLocked(here, facing)) {
+			return;
+		}
+		// Most walls are simply walls now. When every one was a door the
+		// maze had no structure at all — see `WeftModel.HINGE_SHARE`.
+		if (!WeftModel.isHinged(here, facing)) {
 			return;
 		}
 		if (WeftModel.toggle(maze, here, facing)) {
@@ -358,14 +478,17 @@ class WeftBiome implements Biome {
 		rebuild();
 	}
 
-	/** See `biomes.maze.MazeBiome.playerInFrontOfExitWall` — same construction, same reasoning about re-tangenting `forward`. **/
-	function playerInFrontOfExitWall():PlayerModel {
-		var mid = PaintingModel.midpointOf(exitWall.a, exitWall.b);
-		var intoRoom = exitWall.cellCenter.sub(mid).normalized();
-		var pos = mid.add(intoRoom.scaled(RETURN_SPAWN_OFFSET)).normalized().scaled(GridGeometry.RADIUS);
+	/**
+		Where a returning player lands: the exit cell itself, since that is
+		where they left from.
 
-		var posDir = pos.normalized();
-		var forward = intoRoom.sub(posDir.scaled(intoRoom.dot(posDir))).normalized();
-		return new PlayerModel(pos, forward);
+		Simpler than `biomes.maze.MazeBiome.playerInFrontOfExitWall`, which
+		has to step *off* a wall and re-tangent its forward vector — the
+		Weft's exit is a cell rather than a wall, so `PlayerModel.spawnAt`
+		already does the whole job.
+	**/
+	function playerAtExit():PlayerModel {
+		var centre = GridModel.centerOf(WeftModel.exitNode());
+		return PlayerModel.spawnAt(centre.theta, centre.phi, SPAWN_FACING, GridGeometry.RADIUS);
 	}
 }

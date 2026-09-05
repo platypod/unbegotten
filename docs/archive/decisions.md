@@ -1818,3 +1818,82 @@ in [storylines/](../game/README.md).
   since "does red/green actually read as stop/go against the Fold's own
   cyan" and "do several gates make the level feel like a puzzle or just
   a chore" are both judgment calls no test can make.
+
+## The Weft's hinges and its antipodal exit (2026-09-06)
+
+- **2026-09-06 — Every pairable wall being toggleable — REJECTED**, on the
+  verdict that the Weft "currently presents no challenge at all since the
+  player can remove pretty much all of the walls," with the brief to
+  "review the concept and find a way to make the chirality useful."
+
+  The diagnosis is that the space had walls but no *structure*. A maze
+  constrains a route by refusing one; here every ordinary wall opened on a
+  keypress, so no obstacle constrained anything and the layout was
+  decorative. The gates (2026-08-18) were already an admission of this —
+  they exist to supply friction the base rule was not providing, which is
+  a patch rather than a mechanic, and the entry above says so in as many
+  words ("no difficulty in this maze" otherwise).
+
+  Replaced by `WeftModel.HINGE_SHARE`: roughly one paired wall in five is
+  **hinged** and may be opened; the rest are simply walls.
+  `WeftModel.isHinged` decides on the *canonical* key of the pair — the
+  lower of the two edge keys — rather than on each edge's own, so a wall
+  and its antipodal partner always agree. They must: `toggle` moves both,
+  and a hinge whose partner was fixed would let the player change a wall
+  the rule forbids. Unpaired walls (the odd-column rows near the poles,
+  see this document's own gate entry) are never hinged, which they
+  already effectively weren't.
+
+  Rejected alternatives: a **budget** of N openings per visit (rejected —
+  a resource counter is chrome, and `philosophy.md`'s diegetic-over-chrome
+  pillar rules it out); making hinges **visible** as a distinct wall
+  dialect (deferred, not rejected — probably right eventually, but the
+  space should first be played with hinges scarce and unmarked to see
+  whether hunting for them is the interesting part or the tedious part).
+
+- **2026-09-06 — The exit derived from the maze layout — REJECTED**, in
+  favour of a fixed beacon/exit antipodal pair (`WeftModel.beaconNode`,
+  `exitNode`).
+
+  The old placement put the exit painting behind the first keystone gate,
+  or — on a layout with no valid gate candidate at all — wherever
+  `MazeExitWall.find`'s "first closed edge" scan happened to land. Either
+  way the way out was an accident of generation, and the pairing rule was
+  a curiosity the player could route around rather than the thing the
+  level was about.
+
+  Now: a beacon stands north, the exit at its exact antipode, and the exit
+  is dead until the beacon has been reached (`WeftBiome.beaconReached`,
+  per visit, reset on `build`). That states the space's own rule as a
+  route — **the way you carve north is the way you close south** — so the
+  exit you must walk to is the one you spent the first half of the visit
+  demolishing. The chirality stops being a fact about the world and
+  becomes the thing you have to plan against.
+
+  Both objectives are marked with beacons in the signal palette
+  (`WeftBiome.buildObjectiveMarkers`): the beacon `SIGNAL_MARK`, going
+  inert once reached; the exit `SIGNAL_DENY` until then and `SIGNAL_ACT`
+  after. Marking them is not optional here — this space's legibility law
+  is that you can see the far side of the world, so an objective invisible
+  across the interior is an objective hidden from the space's own
+  instrument.
+
+  `exitPaintings` still returns the painting at all times, with
+  `triggersOnApproach` carrying the rule, rather than returning `[]` while
+  unarmed: the empty list would also disable the debug leave key
+  (`Keybinds.LEAVE_BIOME`), conflating "the player may not leave yet" with
+  "there is nowhere to send a developer".
+
+  The gates survive as ordinary side-vaults; they no longer gate the exit.
+  Whether they still earn their place once hinges are scarce is an open
+  question for the first playthrough — they may now be redundant with the
+  friction `HINGE_SHARE` provides.
+
+  Five new tests in `WeftModelTest`: a wall and its antipodal partner
+  agree about being hinged, hinges are scarce but not absent, unpaired
+  walls are never hinged, the exit is the beacon's own antipode, and the
+  two sit in opposite hemispheres. `make fmt`/`lint`/`check`/`test` clean.
+  **Not yet interactively verified** — same standing limitation
+  ([CLAUDE.md](../../CLAUDE.md)); and here the whole question is a
+  judgment call no test can make: whether one hinge in five is scarce
+  enough to make a maze and loose enough to leave a route.
