@@ -139,11 +139,35 @@ without needing the real manifold to produce it.
 
 **Built — `biomes.weft.WeftBiome`.** The pairing, the opposite-state
 invariant, toggling the wall you are facing, the echo standing at your
-antipode, and `WeftMesh`'s own dialect (flat amber/ember/brass — see
-[art-and-audio.md](art-and-audio.md)) replacing the maze prototype's
-grass and stone. What is *not* built is the puzzle — no gate yet
-specifically requires reaching through the antipode, because that is
-level design and wants a mechanic already known to read.
+antipode, and `WeftMesh`'s own dialect — now the Fold's own (dark
+blue-black floor, `ConwayWallGlow`'s panel-plus-cyan-seam walls; see
+[art-and-audio.md](art-and-audio.md)) — replacing the maze prototype's
+grass and stone.
+
+**The gates (2026-08-18), closing the "not built yet" this entry used to
+end on.** Asked directly: the player should have to alternate between
+direct view and antipodal view to find the way, not just watch the
+pairing rule work from a safe distance — and then, once one gate proved
+the mechanic reads, generalized to several ("no difficulty in this maze"
+otherwise: every *ordinary* wall is a door on demand, so a single gate
+was the only real friction in the whole biome). `WeftModel.
+sealKeystoneGates` seals up to a few leaf cells into vaults, each
+reachable through exactly one wall, and that one wall — unlike every
+other wall in the biome — refuses to open for a player standing next to
+it (`WeftBiome.isLocked`). It still obeys the pairing rule underneath, so
+it still opens the instant its antipodal partner (an ordinary,
+freely-toggleable wall) is closed — closing a door across the world is
+the *only* way to open this one. The first gate's exit painting moved
+into its vault, so leaving the Weft at all requires solving *that one*;
+any further gates are optional side-vaults. Made deliberately "too
+obvious" for now: each gate's lock and partner render in flat stop/go
+red and green (`Colours.WEFT_GATE_LOCK`/`WEFT_GATE_KEY`), standing apart
+from the uniform Fold-cyan everywhere else, with matching beacons
+marking both ends even while a wall isn't currently there to color
+(`WeftBiome.buildKeystoneMarkers`) — visible from across the sphere the
+same "raise your head, see far" way any other distant geometry is. To be
+revisited toward something subtler once the mechanic itself is proven
+out.
 
 Findings, none predictable from the design:
 

@@ -1629,3 +1629,192 @@ in [storylines/](../game/README.md).
   from floating-point noise. `make fmt`/`lint`/`check`/`test` all clean
   (38,496 assertions). **Not yet visually verified** — same standing
   limitation as ever.
+
+## Weft dialect reuses the Fold's own (2026-08-17)
+
+- **2026-08-17 — Weft floor/walls reuse the Fold's dialect instead of their
+  own — ACCEPTED, reversing an earlier decision.** Asked directly: "make
+  the walls and ground look the very same" as the Fold. `WeftMesh`
+  previously shipped its own flat amber/ember/brass dialect
+  (`Colours.WEFT_FLOOR`/`WEFT_WALL`, now deleted), chosen specifically to
+  get the Weft off the maze prototype's grass/stone and into
+  [art-and-audio.md](../game/art-and-audio.md)'s "everything is cells" /
+  "hue encodes curvature" universal constants — see that decision's own
+  reasoning, still valid, just superseded on the *specific* dialect
+  chosen. The floor now reuses `Colours.CONWAY_TILE_DEAD`, unchanged in
+  kind (still an unlit flat `FixedColor`). The walls now reuse
+  `graphics.shaders.ConwayWallGlow` itself — the Fold's own dark-panel/
+  cyan-seam Tron treatment — which needed `biomes.common.grid.GridMesh`
+  to grow a `glowUv` mode on `buildWallPrim`/`WallBuilder`: that shader
+  expects raw world-unit face-length UVs, a 0..1 base-to-top `v`, and a
+  per-vertex activity channel (`Vector.normal.x`) carrying
+  `GeodesicMesh`'s own "about to flip" reading, none of which
+  `GridMesh`'s existing texture-tile UV convention produced. The Weft has
+  no such reading (an instant player toggle, not a Conway-style
+  generation-by-generation flip), so every wall vertex gets a constant
+  zero activity — the shader's own rest brightness, never fully dark.
+  `WeftBiome.backgroundColor` was also repointed at
+  `biomes.conway.ConwayBiome.BACKGROUND_COLOR`, unasked but judged in
+  scope: the old warm-amber background was tuned to the dialect it no
+  longer has, and leaving it would read as a mismatch against the new
+  cold geometry rather than a coherent room.
+
+  Recorded as a **deliberate exception** to "each biome gets its own
+  dialect" (the rule the original Weft dialect decision itself leaned
+  on): the Weft's distinguishing devices are mechanical (the echo,
+  `WeftBiome.ECHO_COLOR`) and geometric (the north/south symmetry
+  `WeftModel.enforceOpposite` generates), not visual, so sharing the
+  Fold's surface material costs it nothing — the two spaces are told
+  apart by the pairing rule and the echo, not by hue or wall texture.
+  `docs/game/art-and-audio.md`'s per-biome dialect table and
+  `docs/game/world.md`'s own Weft entry updated alongside.
+
+  `make fmt`/`lint`/`check`/`test` all clean. **Not yet visually
+  verified** — same standing limitation as ever
+  ([CLAUDE.md](../../CLAUDE.md)'s own note on why).
+
+## The Weft's gate (2026-08-18)
+
+- **2026-08-18 — A sealed vault behind one wall that only answers to its
+  antipodal partner — ACCEPTED, closing the Weft's own "not built yet"
+  puzzle note.** Asked directly: "I'd like it if the user had to
+  alternate between direct view and antipodal view to figure out tricks
+  and find the way." Recommended and built as a single authored
+  chokepoint rather than a generator rewrite: `biomes.maze.MazeGenerator`
+  keeps producing an ordinary spanning tree, `WeftModel.enforceOpposite`
+  keeps mirroring it hemisphere-to-hemisphere unchanged, and
+  `WeftModel.findKeystoneCandidate` (new) picks, deterministically (first
+  match, stable scan order — same reasoning as
+  `biomes.maze.MazeExitWall.find`'s own "first closed edge," so a
+  saved/restored maze picks the same vault every time with nothing extra
+  serialized), one leaf cell in the generating hemisphere whose one open
+  side is west or east. `WeftBiome.reload` toggles that one edge closed
+  (sealing the vault; the mirror elsewhere opens, automatically, via the
+  existing pairing invariant — no new invariant logic needed) and moves
+  the exit painting into the vault itself
+  (`biomes.maze.MazeExitWall.wallAt`, factored out of `find` for this),
+  so reaching it at all requires solving the gate once rather than being
+  an optional side room.
+
+  **Why a hard lock, not just a hint.** `WeftBiome.interact` already lets
+  a player standing next to *any* wall toggle it directly; a keystone
+  edge picked purely by convention (paired, but otherwise ordinary) would
+  let a player open it from right there, defeating the whole "go check
+  the antipode" premise the design text already promised ("closing the
+  door in front of you may be the only way to open the one you actually
+  need, on the far side of the world"). `WeftBiome.isLocked` refuses
+  `interact` on this one specific edge — and only this one — while
+  leaving `WeftModel.toggle` itself untouched, so the pairing rule stays
+  one rule with no carve-out: the lock still flips the instant its
+  partner does, the player just cannot make that happen standing next to
+  it.
+
+  **Two beacons, not zero.** A sealed wall that silently refuses to
+  toggle is indistinguishable from an ordinary unpaired wall (same silent
+  no-op `WeftBiome.interact` already gives those) — with nothing marking
+  it, "go check the antipode" has no way to start. `WeftBiome.
+  buildKeystoneMarkers` drops two small static beacons (`game.BoxBatch`,
+  same technique as `echo`) at the lock and its partner, both
+  `Colours.CONWAY_TILE_GLIDER`'s amber — the Fold's own established
+  "followable, notable thing" hue (`GeodesicGliderTracker`'s tracked
+  sites), reused rather than invented, and a small callback to the
+  retired Weft-amber dialect. No new vision instrument: a player spots
+  the far beacon the same way any other distant geometry reads on this
+  sphere, the Fold's own "raise your head, see far" legibility law,
+  unchanged.
+
+  **Scoped away from north/south edges on purpose.** `GridMesh`'s
+  north/south row-boundary walls can split into several pieces at a
+  doubling boundary (`WallBuilder.addRowBoundaryPieces`); a vault's own
+  wall, its exit-painting wall, and both beacon positions all need a
+  single, unambiguous corner geometry, which west/east edges give for
+  free (`MazeExitWall.wallAt`) and north/south edges don't. Every
+  candidate row has plenty of west/east leaves, so this costs nothing in
+  practice — `findKeystoneCandidate` just skips a leaf whose one open
+  side happens to be north/south.
+
+  **Genuinely optional to find nothing.** A candidate requires both the
+  vault and its one neighbor to survive `WeftModel.isPairable` and to
+  have a real partner — vanishingly unlikely to fail on any actual
+  generated maze, but `findKeystoneCandidate` can return `null`, and
+  `WeftBiome.reload` falls back to `MazeExitWall.find`'s ordinary
+  unlocked exit rather than force a gate that isn't really there.
+
+  New tests in `WeftModelTest`: the candidate is a genuine leaf with a
+  real partner, `lockIsWest` agrees with which neighbor is actually open,
+  and the candidate always lands in the northern hemisphere (so sealing
+  it by toggling has the single, predictable effect `enforceOpposite`'s
+  own hemisphere split promises, not a north-vs-south coin flip).
+  `make fmt`/`lint`/`check`/`test` all clean. **Not yet visually or
+  interactively verified** — same standing limitation as ever
+  ([CLAUDE.md](../../CLAUDE.md)'s own note on why); this one especially
+  wants a real playtest, since "does the beacon actually read from across
+  the sphere" and "is the vault ever awkwardly close to spawn" are both
+  judgment calls no test can make.
+
+## Multiple gates, colored obvious (2026-08-18, same day)
+
+- **2026-08-18 — Generalized the single gate to several, and colored
+  every gate wall red/green — ACCEPTED.** Raised directly, right after
+  the single-gate entry above shipped: "if all walls are triggerables,
+  can't the player just remove all of the walls? No difficulty in this
+  maze." True, and not new to this change — every *ordinary* `interact`
+  works in both directions, so the base spanning-tree maze never once
+  stopped a player; the single gate was the only real friction in the
+  whole biome, surrounded by a maze shape that contributed nothing.
+  Two follow-ups, both asked directly in the same breath: generalize to
+  several gates, and make them visually obvious.
+
+  **Several gates: `WeftModel.sealKeystoneGates`,
+  `findKeystoneCandidate` called in a loop against the grid it is
+  actively sealing** — not "find several, then seal them all." Sealing
+  each the moment it's found is what guarantees no two gates ever reuse
+  a wall, with no extra bookkeeping: a cell a gate just sealed can never
+  re-qualify as a *later* gate's own leaf (degree only ever drops from
+  sealing), and the antipodal map is a bijection on pairable nodes, so
+  two distinct northern vaults can never land on the same southern
+  partner. A nice, unplanned side effect: a cell whose degree drops to
+  exactly one as a result of an earlier seal can legitimately become a
+  *new* leaf and get picked as a later gate itself — real chaining,
+  emerging from the sequential search rather than anything explicitly
+  built for it. `WeftBiome.GATE_COUNT` (3, untuned — "several tricky
+  moments," not a measured value) caps how many; only the *first* gate
+  found still gates the exit painting (`WeftBiome.reload`), the rest are
+  optional side-vaults, not an exit gauntlet.
+
+  **Visually obvious: gate walls themselves are recolored, not just the
+  existing beacons.** `GridMesh.buildWallPrim` gained a `skipEdge`
+  predicate so `WeftMesh` can leave every gate edge out of the uniform
+  Fold-cyan mesh, and `GridMesh.buildSingleWallPiecePrim` (new — the same
+  box `WallBuilder.maybeAddPiece` builds for an ordinary wall, factored
+  out for a standalone piece, always both end caps since it's never
+  adjacent to a wall of its own kind) rebuilds each gate edge on its own,
+  flat-colored: `Colours.WEFT_GATE_LOCK` (red, reusing `CONWAY_TILE_DYING`
+  rather than a new hue) for the lock, `WEFT_GATE_KEY` (green, reusing
+  `CONWAY_TILE_LIVE`) for its partner. A gate wall's geometry still only
+  exists while its edge is actually closed, same as any ordinary wall —
+  solving a gate makes its red panel vanish exactly the way opening any
+  other wall does. The existing beacons (`WeftBiome.
+  buildKeystoneMarkers`) switched from a shared amber to the same
+  red/green, so a beacon and its wall read as one signal once a player is
+  close enough to see both, rather than mixing in a third, unrelated hue.
+
+  **Explicitly "too obvious," on purpose, for now** — asked directly,
+  with an explicit "we'll make it more subtle later." Flat, saturated,
+  stock stop/go colors rather than anything argued from the curvature-hue
+  discipline the rest of `docs/game/art-and-audio.md` holds to; recorded
+  there as a deliberate, temporary exception rather than a settled art
+  choice.
+
+  New tests in `WeftModelTest`: `sealKeystoneGates` never reuses a wall
+  across gates (checked directly by collecting every lock/partner edge
+  key and asserting no duplicates), every gate it places is actually
+  sealed, `gateOf` reports the same lock plus a real partner, and
+  `edgeSidesOf` disagrees on which side is "west" exactly once for a
+  genuine west/east edge. `make fmt`/`lint`/`check`/`test` all clean
+  (59,148 assertions). **Not yet visually or interactively verified** —
+  same standing limitation as ever
+  ([CLAUDE.md](../../CLAUDE.md)'s own note on why); doubly true here,
+  since "does red/green actually read as stop/go against the Fold's own
+  cyan" and "do several gates make the level feel like a puzzle or just
+  a chore" are both judgment calls no test can make.
