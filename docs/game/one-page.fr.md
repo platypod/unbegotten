@@ -54,6 +54,30 @@ pas de `<style>`, pas de script, pas de police web, aucune référence externe
 qu'il s'imprime en vectoriel à n'importe quelle taille. C'est du texte : il
 se diffe comme du code.
 
+## Les noms
+
+Les noms d'espaces ne sont pas des calques : l'anglais fait presque toujours
+un double sens, et le français doit en faire un aussi. **La Trame** garde le
+tissage *et* la trame narrative ; **Le Repli** garde le pli géométrique *et*
+l'abri où l'on se replie, qui est tout le sujet du Fil 3 ; **Le Motif** dit
+le motif répété *et* la cause, qui est exactement la leçon de cet espace ;
+**Le Nœud** dit le nœud topologique *et* le nœud dramatique ; **La Nature
+Morte** est le terme français consacré du jeu de la vie, et dit « nature
+morte » pour le seul lieu qui ne tourne pas.
+
+Le vocabulaire technique suit les termes français réels — *moyennable* pour
+*amenable*, *nature morte* pour *still life*, *planeur* pour *glider* — et
+non des anglicismes.
+
+**Encore ouverts :** *Le Tour* (The Turn) et *Le Foisonnement* (The Sprawl)
+sont des titres de travail. *Le Défaut* et *Le Ruban* aussi, plus faiblement :
+*La Faille* dirait mieux le défaut mais évoque une fissure linéaire là où il
+s'agit d'un point, et *La Frise* dirait la ligne du temps si cet espace la
+rendait un jour visible.
+
+Le sous-titre **Inengendré** ne figure que sur l'édition française : c'est le
+terme nicéen exact, le même emprunt théologique que l'anglais *unbegotten*.
+
 L'édition anglaise est à côté, dans [one-page.en.md](one-page.en.md) ; les
 deux sont la même conception et doivent être modifiées ensemble.
 

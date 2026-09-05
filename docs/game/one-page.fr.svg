@@ -2,6 +2,7 @@
 <title>Unbegotten — la ligne de courbure</title>
 <rect x="0" y="0" width="1600" height="1850" fill="#05070A"/>
 <text x="48" y="92" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="46" fill="#E8EFF5" font-weight="bold" letter-spacing="-1">UNBEGOTTEN</text>
+<text x="400" y="92" font-family="Georgia, 'Times New Roman', Times, serif" font-size="27" fill="#8494A2" font-style="italic">Inengendré</text>
 <text x="48" y="122" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">Un labyrinthe sur la face interne d'une sphère. On lève la tête et l'on voit jusqu'à</text>
 <text x="48" y="144" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">l'autre bout du monde — jamais ce qui est juste à côté.</text>
 <text x="1552" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#5A6874" text-anchor="end" letter-spacing="1.6">CONCEPTION EN UNE PAGE</text>
@@ -101,7 +102,7 @@
 <rect x="1526.9333333333334" y="498" width="26.066666666666666" height="3" fill="#0A0E16"/>
 <rect x="48" y="530" width="480" height="152" fill="#111A22" stroke="#111A22" stroke-width="1"/>
 <rect x="48" y="530" width="480" height="2" fill="#3D4E5E"/>
-<text x="62" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">Le Pli</text>
+<text x="62" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">Le Repli</text>
 <text x="62" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#5A6874">sphère géodésique, parcourue de l’intérieur</text>
 <text x="62" y="604" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">La compacité. Fini, clos, sans bord —</text>
 <text x="62" y="623" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">aucune direction n’est « ailleurs ».</text>
@@ -123,7 +124,7 @@
 <text x="514" y="746" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#5A6874" text-anchor="end">■ construit</text>
 <rect x="548" y="530" width="480" height="152" fill="#0D141C" stroke="#111A22" stroke-width="1"/>
 <rect x="548" y="530" width="480" height="2" fill="#2A3846"/>
-<text x="562" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">La Répétition</text>
+<text x="562" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">Le Motif</text>
 <text x="562" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#5A6874">des tuiles séparées et identiques</text>
 <text x="562" y="604" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">La similitude prouve une cause commune, ce</text>
 <text x="562" y="623" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">n’est pas une propriété — et c’est fragile.</text>
@@ -156,13 +157,13 @@
 <text x="1014" y="912" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#5A6874" text-anchor="end">■ partiel</text>
 <rect x="1048" y="530" width="504" height="152" fill="#0A0E16" stroke="#111A22" stroke-width="1"/>
 <rect x="1048" y="530" width="504" height="2" fill="#38E8FF"/>
-<text x="1062" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">L’Étalement</text>
+<text x="1062" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#E8EFF5" font-weight="bold">Le Foisonnement</text>
 <text x="1062" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#5A6874">pavage heptagonal hyperbolique {7,3}</text>
 <text x="1062" y="604" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">Croissance exponentielle. Pas d’ensembles de</text>
 <text x="1062" y="623" font-family="Georgia, 'Times New Roman', Times, serif" font-size="14" fill="#C9D3DD">Følner : tout est bordure, le théorème tombe.</text>
 <line x1="1062" y1="636" x2="1062" y2="664" stroke="#1B2530" stroke-width="2"/>
-<text x="1072" y="647" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#8494A2">Le Pli inversé : voir près, pas loin. Le savoir</text>
-<text x="1072" y="662" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#8494A2">acquis pendant des heures est effacé.</text>
+<text x="1072" y="647" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#8494A2">Le Repli inversé : voir près, pas loin. Le</text>
+<text x="1072" y="662" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11.5" fill="#8494A2">savoir acquis pendant des heures est effacé.</text>
 <text x="1538" y="560" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#3D4E5E" text-anchor="end" letter-spacing="1.4">NAVIGUER</text>
 <text x="1538" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#5A6874" text-anchor="end">■ partiel</text>
 <rect x="1048" y="696" width="504" height="152" fill="#0A0E16" stroke="#111A22" stroke-width="1"/>
