@@ -10,3 +10,7 @@ res/.tmp/
 *.hl
 *.hlc
 haxelib.json.lock
+
+# the one-page figure generator (docs/game/one-page/) is run by hand
+__pycache__/
+*.pyc
