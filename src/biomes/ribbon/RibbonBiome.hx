@@ -73,9 +73,19 @@ class RibbonBiome implements Biome {
 		return GRAVITY;
 	}
 
-	/** Neutral and unlit — κ = 0 is bone/slate/ash per `docs/game/art-and-audio.md`, and this is the flattest thing in the game in both senses. **/
+	/**
+		Neutral and unlit — κ = 0 is bone/slate/ash per
+		`docs/game/art-and-audio.md`, and this is the flattest thing in the
+		game in both senses.
+
+		Public because `RibbonMesh` hazes the hillside toward it: geometry
+		has to recede into the same value the backdrop is painted, or the
+		picture separates from its own background.
+	**/
+	public static inline final BACKGROUND_COLOR:Int = 0x16181B;
+
 	public function backgroundColor():Int {
-		return 0x16181B;
+		return BACKGROUND_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {

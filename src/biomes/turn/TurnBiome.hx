@@ -90,9 +90,18 @@ class TurnBiome implements Biome {
 		return GRAVITY;
 	}
 
-	/** Neutral and dark, so the bright rail carries as far as possible — the one thing in this space the player must never lose track of. **/
+	/**
+		Neutral and dark, so the bright rail carries as far as possible —
+		the one thing in this space the player must never lose track of.
+
+		Public because `TurnMesh` fades the band toward it: geometry has to
+		disappear into the *same* value the backdrop is painted, or the
+		picture visibly separates from its own background.
+	**/
+	public static inline final BACKGROUND_COLOR:Int = 0x121519;
+
 	public function backgroundColor():Int {
-		return 0x121519;
+		return BACKGROUND_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {

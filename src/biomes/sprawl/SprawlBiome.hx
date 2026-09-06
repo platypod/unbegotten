@@ -13,6 +13,7 @@ import geometry.CurvedSpace.ModelPoint;
 import geometry.HyperbolicProjection;
 import geometry.HyperbolicTiling;
 import graphics.Colours;
+import graphics.shaders.FacetedSurface;
 import geometry.Isometry;
 
 /**
@@ -129,6 +130,47 @@ class SprawlBiome implements Biome {
 
 	static inline final COLUMN_COLOR:Int = Colours.SURFACE_RAISED;
 
+	/**
+		Columns standing on a `MILESTONE_RING` boundary — a clear step up the
+		ramp from `COLUMN_COLOR`.
+
+		**This is the navigation instrument, not decoration.**
+		`docs/game/world.md` gives this space ring-counting as the way to
+		establish radius, and pairs it with an audio cue at ring boundaries
+		that is not built. Milestones were already drawn taller
+		(`MILESTONE_HEIGHT_SCALE`), but height is the one channel this
+		projection is worst at: everything past a short distance compresses
+		toward the disc edge, so a 1.9x column two rings out is barely
+		taller on screen than an ordinary one nearby. Value survives that
+		compression where height does not.
+
+		Value rather than hue, even though this is doing a signal's job:
+		`SIGNAL_MARK` is already spent on the home tile here, and two amber
+		things in a space whose whole problem is that you cannot tell where
+		you are would be worse than none.
+	**/
+	static inline final MILESTONE_COLOR:Int = Colours.SURFACE_EDGE;
+
+	/**
+		Where the near field starts fading out, in *rendered* units — the
+		third scale in this class's own note, not world units and not
+		intrinsic ones.
+
+		**Here the fog is the legibility law rather than atmosphere.**
+		`world.md` gives this space the Fold's law inverted — *see near, not
+		far* — with everything past a short distance compressing into an
+		illegible band. Beltrami-Klein already does most of that
+		geometrically: hyperbolic distance 1 lands at rendered radius 7.6
+		and distance 2 at 9.6, so the far field is crushed against the disc
+		edge by the projection itself. Fading that outer shell into the
+		backdrop is what turns a crowded, unreadable rim into an honest
+		horizon.
+	**/
+	static inline final FOG_START:Float = 5.0;
+
+	/** Just inside the projection's own disc edge (`HyperbolicProjection.HORIZON`), so nothing is ever drawn crisply at the rim. **/
+	static inline final FOG_END:Float = 9.8;
+
 	/** The way out — one of the very few things allowed a signal colour here. **/
 	static inline final HOME_COLOR:Int = Colours.SIGNAL_MARK;
 
@@ -194,8 +236,11 @@ class SprawlBiome implements Biome {
 
 	/** Cold and dark, against the Fold's own warmth — `docs/game/art-and-audio.md` ties colour temperature to curvature, and this is the first negatively-curved place in the game. **/
 	public function backgroundColor():Int {
-		return 0x0A1018;
+		return BACKGROUND_COLOR;
 	}
+
+	/** What the near field fades into — geometry has to disappear into the same value the backdrop is painted, or the picture separates from its own background. **/
+	static inline final BACKGROUND_COLOR:Int = 0x0A1018;
 
 	/**
 		Creates the container the per-frame rebuild fills. Nothing is drawn
@@ -371,6 +416,8 @@ class SprawlBiome implements Biome {
 		var floorOddIdx = new hxd.IndexBuffer();
 		var columnPoints:Array<h3d.Vector> = [];
 		var columnIdx = new hxd.IndexBuffer();
+		var milestonePoints:Array<h3d.Vector> = [];
+		var milestoneIdx = new hxd.IndexBuffer();
 		var homePoints:Array<h3d.Vector> = [];
 		var homeIdx = new hxd.IndexBuffer();
 
@@ -397,13 +444,15 @@ class SprawlBiome implements Biome {
 			var base = columnBases[id];
 			if (base != null) {
 				var milestone = tiling.rings[id] > 0 && tiling.rings[id] % MILESTONE_RING == 0;
-				addColumn(columnPoints, columnIdx, view, base, milestone ? COLUMN_HEIGHT * MILESTONE_HEIGHT_SCALE : COLUMN_HEIGHT);
+				addColumn(milestone ? milestonePoints : columnPoints, milestone ? milestoneIdx : columnIdx, view, base,
+					milestone ? COLUMN_HEIGHT * MILESTONE_HEIGHT_SCALE : COLUMN_HEIGHT);
 			}
 		}
 
 		addMesh(container, floorEvenPoints, floorEvenIdx, FLOOR_EVEN_COLOR);
 		addMesh(container, floorOddPoints, floorOddIdx, FLOOR_ODD_COLOR);
 		addMesh(container, columnPoints, columnIdx, COLUMN_COLOR);
+		addMesh(container, milestonePoints, milestoneIdx, MILESTONE_COLOR);
 		addMesh(container, homePoints, homeIdx, HOME_COLOR);
 	}
 
@@ -427,7 +476,7 @@ class SprawlBiome implements Biome {
 			return; // Polygon rejects an empty vertex list, and a fully-culled bucket legitimately produces one
 		}
 		var mesh = new h3d.scene.Mesh(new h3d.prim.Polygon(points, idx), parent);
-		mesh.material.mainPass.addShader(new h3d.shader.FixedColor(color));
+		mesh.material.mainPass.addShader(FacetedSurface.from(color, BACKGROUND_COLOR, FOG_START, FOG_END));
 		mesh.material.mainPass.culling = None;
 	}
 

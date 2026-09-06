@@ -2,6 +2,7 @@ package biomes.ribbon;
 
 import game.BoxBatch;
 import game.MeshBuilder;
+import graphics.shaders.FacetedSurface;
 
 /**
 	Builds the Ribbon's terrain: one flat slab for the whole diagram, a
@@ -25,8 +26,28 @@ class RibbonMesh {
 	/** Dead ground: ash, the darkest of the three values. **/
 	static inline final GROUND_COLOR:Int = 0x2B2E33;
 
-	/** Live cells: slate, one clear step up. **/
+	/** Live cells at the present edge: slate, one clear step up. **/
 	static inline final LIVE_COLOR:Int = 0x767E88;
+
+	/** Live cells at generation zero — dimmer, but held clear of `GROUND_COLOR` so the oldest strata stay legible. See the class doc. **/
+	static inline final LIVE_PAST_COLOR:Int = 0x3E444C;
+
+	/** How many discrete strata the history is valued in. Few enough that each is a visible step rather than a gradient; see the class doc on why banded. **/
+	static inline final AGE_BANDS:Int = 6;
+
+	/**
+		Where the hillside starts hazing over, in world units.
+
+		Gentle by the standards of the other flat biomes, and deliberately
+		so: the strip is about 1,430 units long and the monolith at its far
+		end is meant to be *visible from most of that*, so this is aerial
+		perspective rather than a horizon. At the far edge the wash is a
+		little under half.
+	**/
+	static inline final FOG_START:Float = 700;
+
+	/** See `FOG_START`. **/
+	static inline final FOG_END:Float = 2400;
 
 	/** The initial condition's own marker: bone, the brightest thing in the biome and the only one. **/
 	static inline final MONOLITH_COLOR:Int = 0xE8E4DA;
@@ -60,7 +81,6 @@ class RibbonMesh {
 		addMonolith(parent);
 	}
 
-	/** The dead floor, as a single quad under everything — a live cell's own box sits on top of it rather than replacing it. **/
 	/** The dead floor, as a single sloped quad under everything — a live cell's own box sits on top of it rather than replacing it. **/
 	static function addGround(parent:h3d.scene.Object):Void {
 		var points:Array<h3d.Vector> = [];
@@ -75,8 +95,47 @@ class RibbonMesh {
 			new h3d.Vector(half, high, RibbonModel.PRESENT_EDGE), new h3d.Vector(-half, high, RibbonModel.PRESENT_EDGE));
 
 		var mesh = new h3d.scene.Mesh(new h3d.prim.Polygon(points, idx), parent);
-		mesh.material.mainPass.addShader(new h3d.shader.FixedColor(GROUND_COLOR));
+		mesh.material.mainPass.addShader(FacetedSurface.from(GROUND_COLOR, RibbonBiome.BACKGROUND_COLOR, FOG_START, FOG_END));
 		mesh.material.mainPass.culling = None;
+	}
+
+	/**
+		This biome's own shading, for one `game.BoxBatch` — a factory, since
+		`BoxBatch.flush` can emit several meshes (which here it certainly
+		does) and a shader carries per-mesh state.
+		@param base the batch's own value.
+		@return a factory building its shader.
+	**/
+	static function faceted(base:Int):Void->hxsl.Shader {
+		return () -> FacetedSurface.from(base, RibbonBiome.BACKGROUND_COLOR, FOG_START, FOG_END);
+	}
+
+	/**
+		The value of live cells in age band `band`, stepping from
+		`LIVE_COLOR` at the present to `LIVE_PAST_COLOR` at generation zero.
+		@param band which band, `0` being the oldest.
+		@return that stratum's own colour.
+	**/
+	static function bandColor(band:Int):Int {
+		var t = AGE_BANDS > 1 ? band / (AGE_BANDS - 1) : 1.0;
+		return blend(LIVE_PAST_COLOR, LIVE_COLOR, t);
+	}
+
+	/**
+		Linear blend between two `0xAARRGGBB` colours, keeping the first's
+		alpha.
+		@param from the colour at `t = 0`.
+		@param to the colour at `t = 1`.
+		@param t position between them, in [0, 1].
+		@return the blended colour.
+	**/
+	static function blend(from:Int, to:Int, t:Float):Int {
+		var channel = (shift:Int) -> {
+			var a = (from >> shift) & 0xFF;
+			var b = (to >> shift) & 0xFF;
+			return Std.int(a + (b - a) * t) << shift;
+		};
+		return (from & 0xFF000000) | channel(16) | channel(8) | channel(0);
 	}
 
 	/**
@@ -95,10 +154,18 @@ class RibbonMesh {
 		gone there is nothing to buy with the risk.
 	**/
 	static function addLiveCells(automaton:RibbonAutomaton, parent:h3d.scene.Object):Void {
-		var batch = new BoxBatch(parent, LIVE_COLOR);
 		var half = RibbonModel.CELL_SIZE / 2 * CELL_INSET;
+		var bands:Array<BoxBatch> = [];
+		for (band in 0...AGE_BANDS) {
+			var color = bandColor(band);
+			bands.push(new BoxBatch(parent, color, faceted(color)));
+		}
 
-		for (g in 0...automaton.generations()) {
+		var total = automaton.generations();
+		for (g in 0...total) {
+			// Which stratum this generation falls in — see the class doc.
+			var band = Std.int(g * AGE_BANDS / total);
+			var batch = bands[band > AGE_BANDS - 1 ? AGE_BANDS - 1 : band];
 			for (i in 0...automaton.width) {
 				if (!automaton.isLive(g, i)) {
 					continue;
@@ -107,7 +174,9 @@ class RibbonMesh {
 				batch.add(RibbonModel.xOf(i), z, half, half, RibbonModel.baseHeightAt(z), RibbonModel.RELIEF);
 			}
 		}
-		batch.flush();
+		for (batch in bands) {
+			batch.flush();
+		}
 	}
 
 	/** The marker on generation `0`'s own live cell — where the history stops, and somebody started it. **/

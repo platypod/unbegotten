@@ -75,6 +75,22 @@ class KnotBiome implements Biome {
 	/** The one asymmetric marker in the room — the only way to tell which image you are looking at, and how it is turned. **/
 	static inline final LANDMARK_COLOR:Int = 0xC9A227;
 
+	/**
+		Where the near field starts fading out, in *rendered* units.
+
+		Same reasoning as `biomes.sprawl.SprawlBiome.FOG_START`, and for the
+		same projection — but it matters more here. This space's whole
+		payoff is *the same landmark repeating in several directions at
+		once*, and a flat fill drawn crisply all the way to the disc edge
+		stacks those repeats into one violet mass where the repetition is
+		exactly what the player is supposed to read. Fading the far images
+		is what separates them.
+	**/
+	static inline final FOG_START:Float = 5.0;
+
+	/** Just inside `geometry.HyperbolicProjection.HORIZON`, so nothing is drawn crisply at the rim. **/
+	static inline final FOG_END:Float = 9.8;
+
 	static inline final LANDMARK_HEIGHT:Float = 7.0;
 	static inline final LANDMARK_RADIUS:Float = 0.13;
 
@@ -132,9 +148,19 @@ class KnotBiome implements Biome {
 		return 60;
 	}
 
-	/** Cold and violet — κ < 0, per `docs/game/art-and-audio.md`, and pushed further from the Sprawl's blue since this is the deeper end of the same scale. **/
+	/**
+		Cold and violet — κ < 0, per `docs/game/art-and-audio.md`, and pushed
+		further from the Sprawl's blue since this is the deeper end of the
+		same scale.
+
+		The hue here is the design's own curvature language rather than a
+		palette slip, which is why the visual pass left it alone while
+		moving the flat biomes onto `graphics.Colours`' neutral ramp.
+	**/
+	static inline final BACKGROUND_COLOR:Int = 0x0B0814;
+
 	public function backgroundColor():Int {
-		return 0x0B0814;
+		return BACKGROUND_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
@@ -290,7 +316,7 @@ class KnotBiome implements Biome {
 			return; // Polygon rejects an empty vertex list
 		}
 		var mesh = new h3d.scene.Mesh(new h3d.prim.Polygon(points, idx), parent);
-		mesh.material.mainPass.addShader(new h3d.shader.FixedColor(color));
+		mesh.material.mainPass.addShader(graphics.shaders.FacetedSurface.from(color, BACKGROUND_COLOR, FOG_START, FOG_END));
 		mesh.material.mainPass.culling = None;
 	}
 

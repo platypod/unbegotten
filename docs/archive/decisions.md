@@ -2046,3 +2046,97 @@ in [storylines/](../game/README.md).
   **Not interactively verified** — same standing limitation
   ([CLAUDE.md](../../CLAUDE.md)); nothing here says whether 49 dead ends
   plays better or worse than 30.
+
+## The visual pass on biomes 4–8 (2026-09-06)
+
+- **2026-09-06 — `h3d.shader.FixedColor` as the default surface treatment
+  — REJECTED** for every space from the Turn onward, replaced by
+  `graphics.shaders.FacetedSurface`.
+
+  The Repeat got this treatment on 2026-09-04, against the verdict that it
+  was "too flat... barely-grey-cubes". The same diagnosis held, unexamined,
+  for the Turn, the Defect, the Ribbon, the Sprawl and the Knot: every one
+  drew each mesh as one flat value at every distance and orientation, which
+  carries no information but silhouette. `art-and-audio.md`'s own material
+  language has said "faceted" since it was written; nothing was delivering
+  it.
+
+  **Extracted rather than copied.** `CityFacade` already did facet shading
+  and distance fade — plus procedural windows keyed on tile-local
+  coordinates, which are load-bearing for the Repeat's own mechanic.
+  `FacetedSurface` is the two generic halves on their own. `CityFacade`
+  was deliberately *not* rebuilt on top of it: folding a tiling rule that a
+  mechanic depends on into a shader five other biomes share would be
+  exactly the wrong coupling.
+
+  **The normal comes from screen-space derivatives**
+  (`cross(dFdx(P), dFdy(P))`), not from vertex data, and that decision is
+  what made the shader reusable at all. Every one of these biomes builds
+  bare `h3d.prim.Polygon` positions, and two of them
+  (`SprawlBiome`, `KnotBiome`) rebuild their entire world every frame —
+  so requiring real normals would have meant `unindex()` plus
+  `addNormals()` per frame, tripling the vertex count of a per-frame
+  rebuild, and *averaged* vertex normals would have smoothed away the very
+  facets the shader exists to show. The derivative cross product is the
+  true flat face normal, is free, and works on geometry authored years
+  before the shader. It is also sign-independent as used here (`abs(n.x)`,
+  `abs(n.y)`), so winding order cannot break it.
+
+  Rejected alternative: **a real light**. Cheap, conventional, and wrong
+  for this project — `art-and-audio.md` spends value rather than
+  illumination, and a directional light puts a highlight somewhere the
+  design never asked for one.
+
+  **Per-biome, each derived from that space's own stated legibility law
+  rather than applied uniformly:**
+
+  - **The Turn.** Fog is the only depth cue a high-speed corridor has, and
+    `world.md` says the hard problem here is not the chirality mechanism
+    but whether *moving* is pleasurable enough to sustain lap after lap.
+    Obstacles gained volume; the band now recedes instead of being a
+    uniform slab to the drawn horizon. Obstacles were deliberately *not*
+    moved down onto the neutral ramp with the floor — they are the one
+    thing a player must see early enough to pick a lane, and this file's
+    own history includes a tell that shipped too dark to read.
+  - **The Defect.** `DefectBiome`'s note admits the compromise the space
+    cannot avoid: a cone cannot be flattened, so a wedge is missing behind
+    the apex and the plain ends at a rim. Fading into the backdrop means
+    it ends in darkness instead — the compromise stops being visible
+    without the seamless cone renderer that entry still calls for.
+  - **The Ribbon.** Live cells are now valued by **age**, in six strata
+    from the present down to generation zero. Every cell used to be the
+    same slate whichever generation computed it, which quietly discarded
+    this space's own legibility law — *the past is terrain, and the
+    further you walk the older the world you are standing on gets*. Banded
+    rather than smoothly graded on purpose: discrete strata read as
+    sediment, which is the museum-or-graveyard register the design asks
+    for, where a continuous fade reads as weather. The oldest band is held
+    clear of the ground's own value so the thin, simplified terrain near
+    generation zero stays legible.
+  - **The Sprawl.** Here the fade *is* the legibility law — the Fold's
+    inverted, see near not far. Beltrami-Klein already does most of the
+    crowding geometrically (hyperbolic distance 1 lands at rendered radius
+    7.6, distance 2 at 9.6), so fading that outer shell turns an
+    unreadable rim into an honest horizon. Separately: **milestone ring
+    columns got their own value.** They were already drawn 1.9x taller,
+    but height is the channel this projection is worst at, and ring
+    counting is the navigation instrument the design names. Value rather
+    than hue, because `SIGNAL_MARK` is already spent on the home tile and
+    two amber things in a space whose whole problem is not knowing where
+    you are would be worse than none.
+  - **The Knot.** Its violet is the design's own curvature language, not a
+    palette slip, so it was left alone while the flat biomes moved onto
+    the neutral ramp. What it needed was separation: the payoff here is
+    *the same landmark repeating in several directions at once*, and flat
+    fills drawn crisply to the disc edge stack those repeats into one
+    violet mass.
+
+  **Not done, and named rather than left silent:** none of this is
+  visually verified. `game.GameLoop` always starts in the debug hub, and
+  reaching any of these five means walking there — which
+  [CLAUDE.md](../../CLAUDE.md) records as the thing this setup cannot do
+  reliably. `make fmt`/`lint`/`check`/`test` are clean, which for a
+  rendering change proves only that it compiles and breaks nothing else.
+  A `#biome=<id>` startup override would make this and every future visual
+  pass checkable from a fixed vantage point; deliberately not added
+  unasked.

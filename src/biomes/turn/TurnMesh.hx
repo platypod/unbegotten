@@ -3,6 +3,7 @@ package biomes.turn;
 import game.BoxBatch;
 import geometry.Isometry;
 import graphics.Colours;
+import graphics.shaders.FacetedSurface;
 
 /**
 	The band, its two rails, and the obstacles along it — drawn once per
@@ -39,9 +40,28 @@ import graphics.Colours;
 
 	Colour is value only: κ = 0 is bone, slate and ash, and hue belongs to
 	curvature alone.
+
+	**Faceted and fogged (2026-09-06), and here that is locomotion rather
+	than decoration.** Everything was drawn as a flat fill, so the band was
+	a uniform slab all the way to the drawn horizon and the obstacles were
+	silhouettes without volume. That matters more in this space than in any
+	other: `world.md`'s own entry says the hard problem here is not the
+	chirality mechanism but whether *moving* is pleasurable enough to
+	sustain lap after lap, and a corridor with no depth cue gives the eye
+	nothing to measure speed against. `graphics.shaders.FacetedSurface`
+	fixes both halves — the obstacles gain their sides, and the band now
+	recedes, so the ground arrives out of the dark instead of already being
+	there.
+
+	**The rails are fogged too, deliberately.** They are the instrument, so
+	the instinct is to exempt them; but a rail that stays equally bright at
+	every distance is a rail that says nothing about *how far* — and
+	`FOG_START` is set well past the planning distance, so the several
+	obstacles a player is actually reacting to are drawn crisp.
 **/
 class TurnMesh {
-	static inline final FLOOR_COLOR:Int = 0x24282E;
+	/** Moved onto `graphics.Colours`' ramp with the visual pass — the ad-hoc grey predated the palette, and the Repeat (the other κ = 0 space) already reads from it. **/
+	static inline final FLOOR_COLOR:Int = Colours.SURFACE_MID;
 
 	/** The bright rail — the one that tells the player which way round they currently are. **/
 	static inline final RAIL_BRIGHT_COLOR:Int = 0xE4E0D6;
@@ -56,7 +76,30 @@ class TurnMesh {
 	**/
 	static inline final RAIL_DARK_COLOR:Int = 0x646C77;
 
+	/**
+		Left bright rather than moved down onto the ramp with the floor.
+
+		These are the one thing in this space a player has to see *early*,
+		at 2.4x walking speed, in time to pick a lane — and this file's own
+		history is of a tell that was too dark to read (see
+		`RAIL_DARK_COLOR`). Facet shading gives them volume without costing
+		them any of that legibility, which is the whole reason it was worth
+		doing here.
+	**/
 	static inline final OBSTACLE_COLOR:Int = 0x9098A2;
+
+	/**
+		Where the band starts fading out, in world units.
+
+		Past the distance a player plans against: obstacles come every
+		`TurnModel.OBSTACLE_SPACING` (75) and the band moves at about 36
+		units a second, so this leaves roughly the next four obstacles —
+		nine seconds of reaction — drawn at full value.
+	**/
+	static inline final FOG_START:Float = 350;
+
+	/** Where the band has faded out entirely; short of one full `TurnModel.PERIOD`, so the seam between drawn copies is never visible. **/
+	static inline final FOG_END:Float = 1100;
 
 	static inline final RAIL_HALF_WIDTH:Float = 3;
 	static inline final RAIL_HEIGHT:Float = 11;
@@ -75,10 +118,10 @@ class TurnMesh {
 		@return the gate's own object, so the caller can show and hide it as the player's lift changes — it is the one piece of this band that is not static.
 	**/
 	public static function build(parent:h3d.scene.Object, copies:Int):h3d.scene.Object {
-		var floors = new BoxBatch(parent, FLOOR_COLOR);
-		var bright = new BoxBatch(parent, RAIL_BRIGHT_COLOR);
-		var dark = new BoxBatch(parent, RAIL_DARK_COLOR);
-		var obstacles = new BoxBatch(parent, OBSTACLE_COLOR);
+		var floors = new BoxBatch(parent, FLOOR_COLOR, faceted(FLOOR_COLOR));
+		var bright = new BoxBatch(parent, RAIL_BRIGHT_COLOR, faceted(RAIL_BRIGHT_COLOR));
+		var dark = new BoxBatch(parent, RAIL_DARK_COLOR, faceted(RAIL_DARK_COLOR));
+		var obstacles = new BoxBatch(parent, OBSTACLE_COLOR, faceted(OBSTACLE_COLOR));
 
 		for (copy in -copies...copies + 1) {
 			var placement = copyTransform(copy);
@@ -107,7 +150,7 @@ class TurnMesh {
 	**/
 	static function buildGate(parent:h3d.scene.Object, copies:Int):h3d.scene.Object {
 		var root = new h3d.scene.Object(parent);
-		var slabs = new BoxBatch(root, Colours.SIGNAL_DENY);
+		var slabs = new BoxBatch(root, Colours.SIGNAL_DENY, faceted(Colours.SIGNAL_DENY));
 		for (copy in -copies...copies + 1) {
 			var placement = copyTransform(copy);
 			var centre = Isometry.apply(placement, {x: TurnModel.GATE_ALONG, y: 0.0, z: 1.0});
@@ -115,6 +158,19 @@ class TurnMesh {
 		}
 		slabs.flush();
 		return root;
+	}
+
+	/**
+		This band's own shading, for one `game.BoxBatch`.
+
+		A factory rather than a shared instance because `BoxBatch.flush` can
+		emit several meshes and a shader carries per-mesh state — see that
+		class's own `shade` doc.
+		@param base the batch's own value.
+		@return a factory building its shader.
+	**/
+	static function faceted(base:Int):Void->hxsl.Shader {
+		return () -> FacetedSurface.from(base, TurnBiome.BACKGROUND_COLOR, FOG_START, FOG_END);
 	}
 
 	/**

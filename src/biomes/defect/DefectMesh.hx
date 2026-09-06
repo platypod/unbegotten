@@ -2,6 +2,8 @@ package biomes.defect;
 
 import game.BoxBatch;
 import game.MeshBuilder;
+import graphics.Colours;
+import graphics.shaders.FacetedSurface;
 
 /**
 	The plain, the apex, and the markers that make a rotation readable.
@@ -15,10 +17,37 @@ import game.MeshBuilder;
 
 	Value only, as everywhere flat: κ is zero at every point the player
 	can stand, and hue belongs to curvature.
+
+	**Faceted and fogged (2026-09-06), and the fog is doing real work
+	here.** `DefectBiome`'s own note admits the one thing this space cannot
+	deliver: a cone cannot be flattened, so the markers are drawn in a
+	window centred on the player and the unavoidable gap sits directly
+	behind the apex. A flat fill drawn to a hard rim put that rim, and the
+	disc's own edge, in plain sight. Fading geometry into the backdrop
+	instead means the plain ends in darkness rather than at a visible
+	boundary — the compromise stops being *visible* even though it is still
+	there, which is the closest this gets to the legibility law's "nothing
+	is visibly bent" without writing the seamless cone renderer that entry
+	calls for. The posts gaining their sides is the ordinary half of the
+	same change.
 **/
 class DefectMesh {
-	static inline final GROUND_COLOR:Int = 0x262A30;
+	/** Moved onto `graphics.Colours`' ramp with the visual pass; the ad-hoc grey predated the palette. **/
+	static inline final GROUND_COLOR:Int = Colours.SURFACE_MID;
+
 	static inline final RING_COLOR:Int = 0x5C646E;
+
+	/**
+		Where the plain starts fading out, in world units.
+
+		Comfortably past the outermost ring, so every marker a player is
+		actually reading a rotation against is drawn at full value; it is
+		the empty ground beyond them, and the rim, that this is for.
+	**/
+	static inline final FOG_START:Float = 240;
+
+	/** Where geometry has faded out entirely — past `DefectModel.PLAIN_RADIUS`, so the disc's own edge is deep in the fade rather than sitting exactly at it, which would read as a deliberate ring. **/
+	static inline final FOG_END:Float = 700;
 
 	/** The meridian, and the brightest thing here — it is the reference the whole space is read against. **/
 	static inline final MERIDIAN_COLOR:Int = 0xE8E4DA;
@@ -49,7 +78,7 @@ class DefectMesh {
 	public static function build(parent:h3d.scene.Object, playerAngle:Float):Void {
 		addGround(parent);
 
-		var apex = new BoxBatch(parent, APEX_COLOR);
+		var apex = new BoxBatch(parent, APEX_COLOR, faceted(APEX_COLOR));
 		apex.add(0, 0, APEX_HALF_WIDTH, APEX_HALF_WIDTH, 0, APEX_HEIGHT);
 		apex.flush();
 
@@ -79,13 +108,24 @@ class DefectMesh {
 		}
 
 		var mesh = new h3d.scene.Mesh(new h3d.prim.Polygon(points, idx), parent);
-		mesh.material.mainPass.addShader(new h3d.shader.FixedColor(GROUND_COLOR));
+		mesh.material.mainPass.addShader(FacetedSurface.from(GROUND_COLOR, DefectBiome.BACKGROUND_COLOR, FOG_START, FOG_END));
 		mesh.material.mainPass.culling = None;
+	}
+
+	/**
+		This plain's own shading, for one `game.BoxBatch` — a factory, since
+		`BoxBatch.flush` can emit several meshes and a shader carries
+		per-mesh state.
+		@param base the batch's own value.
+		@return a factory building its shader.
+	**/
+	static function faceted(base:Int):Void->hxsl.Shader {
+		return () -> FacetedSurface.from(base, DefectBiome.BACKGROUND_COLOR, FOG_START, FOG_END);
 	}
 
 	/** The one straight line out from the apex — cone angle `0`, the world's only unambiguous bearing. **/
 	static function addMeridian(parent:h3d.scene.Object, playerAngle:Float):Void {
-		var batch = new BoxBatch(parent, MERIDIAN_COLOR);
+		var batch = new BoxBatch(parent, MERIDIAN_COLOR, faceted(MERIDIAN_COLOR));
 		var drawAngle = DefectModel.drawAngleFor(0, playerAngle);
 		var span = DefectModel.PLAIN_RADIUS - DefectModel.APEX_EXCLUSION;
 
@@ -107,7 +147,7 @@ class DefectMesh {
 		rather than a visible discontinuity.
 	**/
 	static function addRings(parent:h3d.scene.Object, playerAngle:Float):Void {
-		var batch = new BoxBatch(parent, RING_COLOR);
+		var batch = new BoxBatch(parent, RING_COLOR, faceted(RING_COLOR));
 		var span = DefectModel.PLAIN_RADIUS - DefectModel.APEX_EXCLUSION;
 
 		for (ring in 0...RING_COUNT) {

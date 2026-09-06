@@ -126,6 +126,32 @@ Everything is made of the same substance, because it is:
   cheap and it is also the point: a defect is where a space admits it was
   made.
 
+**Faceting and fade are how "faceted, tiled, discrete" is actually
+delivered** (2026-09-06, `graphics.shaders.FacetedSurface`). The material
+language above says faceted, but until this pass every biome from the Turn
+onward drew each mesh with a single flat fill — one value for every face at
+every distance and orientation. An image like that carries no information
+but silhouette, and same-value silhouettes that overlap merge into one
+shape, which is exactly the complaint that started the Repeat's own visual
+pass ("too flat... barely-grey-cubes"). Two rules, now shared:
+
+- **Faces are valued by which axis they face.** Not lighting — there is no
+  light, no direction, no falloff, only three constants indexed by axis,
+  because this document spends *value* rather than illumination and a real
+  light would put a highlight somewhere nothing asked for one. It is what
+  makes a box read as a solid rather than a cutout, and what stops two
+  adjacent solids merging at their shared edge.
+- **Geometry fades into the backdrop with distance**, toward the biome's
+  own background colour — never toward black, or the picture separates
+  from its own background.
+
+The fade is not decoration in every space that uses it. In the Turn it is
+the only depth cue a high-speed corridor has, and that space's hard problem
+is whether moving through it is pleasurable. In the Defect it hides the one
+compromise the cone renderer cannot avoid. In the Sprawl it *is* the
+legibility law — see near, not far — and in the Knot it is what separates
+the repeated images of the one room from each other.
+
 ## Per-biome visual dialect
 
 Hue-encodes-curvature and the material language above are **universal

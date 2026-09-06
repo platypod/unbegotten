@@ -75,9 +75,19 @@ class DefectBiome implements Biome {
 		return GRAVITY;
 	}
 
-	/** Neutral — κ is zero everywhere the player can stand, and hue carries curvature alone. The whole joke of this space is that it has no right to look like anything else. **/
+	/**
+		Neutral — κ is zero everywhere the player can stand, and hue carries
+		curvature alone. The whole joke of this space is that it has no
+		right to look like anything else.
+
+		Public because `DefectMesh` fades the plain toward it: geometry has
+		to disappear into the same value the backdrop is painted, or the
+		picture separates from its own background.
+	**/
+	public static inline final BACKGROUND_COLOR:Int = 0x1B1E22;
+
 	public function backgroundColor():Int {
-		return 0x1B1E22;
+		return BACKGROUND_COLOR;
 	}
 
 	public function build(parent:h3d.scene.Object):Void {
