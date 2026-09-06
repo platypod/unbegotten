@@ -4,7 +4,7 @@ import biomes.common.Biome;
 import biomes.common.Gravity;
 import biomes.common.space.hyperbolic.HyperbolicSpace;
 import biomes.common.space.hyperbolic.HyperbolicView;
-import biomes.hub.HubBiome;
+import biomes.debug.DebugHubBiome;
 import entities.painting.PaintingModel;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
@@ -176,10 +176,28 @@ class KnotBiome implements Biome {
 	}
 
 	/** One way out, at the room's own centre. Its trigger is a hyperbolic radius converted the same way the Sprawl's is — see `biomes.sprawl.SprawlBiome.exitPaintings`. **/
+	/**
+		One exit, and it does **not** trigger on approach.
+
+		Nothing is drawn where this painting stands, and an unmarked warp
+		that fires when you walk near it is not an exit, it is a trapdoor —
+		you are removed from the level with no way to have known where it
+		was or to avoid it. That was reported twice, the second time from
+		this very biome. `PaintingModel.triggersOnApproach` is false here,
+		so the painting still exists for the debug leave key
+		(`game.Keybinds.LEAVE_BIOME`) and does nothing to a player walking
+		past it.
+
+		**Give this biome a drawn exit and this should become true again.**
+		The rule is about unmarked warps, not about warps —
+		`biomes.sprawl.SprawlBiome`'s own amber home tile is visible and
+		still triggers, and `biomes.weft.WeftBiome` earns its trigger by
+		drawing a marker.
+	**/
 	public function exitPaintings():Array<PaintingModel> {
 		var centre = new h3d.Vector(0, 0, CURVATURE_RADIUS);
 		return [
-			new PaintingModel(centre, HubBiome.ID, biomes.sprawl.SprawlBiome.euclideanRadiusOf(0.28))
+			new PaintingModel(centre, DebugHubBiome.ID, biomes.sprawl.SprawlBiome.euclideanRadiusOf(0.28), false)
 		];
 	}
 

@@ -3,7 +3,7 @@ package biomes.defect;
 import biomes.common.Biome;
 import biomes.common.Gravity;
 import biomes.common.space.flat.FlatSpace;
-import biomes.hub.HubBiome;
+import biomes.debug.DebugHubBiome;
 import entities.painting.PaintingModel;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
@@ -116,9 +116,27 @@ class DefectBiome implements Biome {
 	}
 
 	/** One way out, off the meridian so it is not walked into while circling. **/
+	/**
+		One exit, and it does **not** trigger on approach.
+
+		Nothing is drawn where this painting stands, and an unmarked warp
+		that fires when you walk near it is not an exit, it is a trapdoor —
+		you are removed from the level with no way to have known where it
+		was or to avoid it. That was reported twice, the second time from
+		this very biome. `PaintingModel.triggersOnApproach` is false here,
+		so the painting still exists for the debug leave key
+		(`game.Keybinds.LEAVE_BIOME`) and does nothing to a player walking
+		past it.
+
+		**Give this biome a drawn exit and this should become true again.**
+		The rule is about unmarked warps, not about warps —
+		`biomes.sprawl.SprawlBiome`'s own amber home tile is visible and
+		still triggers, and `biomes.weft.WeftBiome` earns its trigger by
+		drawing a marker.
+	**/
 	public function exitPaintings():Array<PaintingModel> {
 		var at = DefectModel.rotate(SPAWN_RADIUS, 0, 0.35);
-		return [new PaintingModel(new h3d.Vector(at.x, 0, at.z), HubBiome.ID, 14)];
+		return [new PaintingModel(new h3d.Vector(at.x, 0, at.z), DebugHubBiome.ID, 14, false)];
 	}
 
 	/**

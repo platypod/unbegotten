@@ -4,7 +4,7 @@ import biomes.common.Biome;
 import biomes.common.Gravity;
 import biomes.common.space.hyperbolic.HyperbolicSpace;
 import biomes.common.space.hyperbolic.HyperbolicView;
-import biomes.hub.HubBiome;
+import biomes.debug.DebugHubBiome;
 import entities.painting.PaintingModel;
 import entities.player.Camera.CameraOverride;
 import entities.player.PlayerModel;
@@ -277,6 +277,12 @@ class SprawlBiome implements Biome {
 	/**
 		One exit: the home tile.
 
+		**The one exit in biomes 4 and up that still triggers on approach**,
+		and it earns that by being drawn — the amber tile at the origin
+		(`HOME_COLOR`) is the brightest thing in the biome. The others were
+		disarmed because nothing marked them, which made them trapdoors
+		rather than exits; see `biomes.turn.TurnBiome.exitPaintings`.
+
 		`PaintingModel.triggeredBy` measures a plain Euclidean distance
 		between two `h3d.Vector`s, which is meaningless between two
 		arbitrary points of this biome — hyperboloid coordinates are not
@@ -295,7 +301,7 @@ class SprawlBiome implements Biome {
 		@return the single exit painting, at the home tile.
 	**/
 	public function exitPaintings():Array<PaintingModel> {
-		return [new PaintingModel(homePosition(), HubBiome.ID, homeTriggerRadius())];
+		return [new PaintingModel(homePosition(), DebugHubBiome.ID, homeTriggerRadius())];
 	}
 
 	/** The Euclidean radius, in hyperboloid coordinates, of the ball of hyperbolic radius "half a tile's inradius" about the origin — see `exitPaintings`. **/

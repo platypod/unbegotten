@@ -33,6 +33,7 @@ import biomes.maze.MazeGeneratorTest;
 import biomes.mobius.MobiusCollisionTest;
 import biomes.mobius.MobiusForestGeneratorTest;
 import biomes.tower.TowerCollisionTest;
+import biomes.common.BiomeExitTest;
 import biomes.weft.WeftCarverTest;
 import biomes.weft.WeftModelTest;
 import biomes.wind.WindFieldTest;
@@ -96,6 +97,7 @@ class TestMain {
 		runner.addCase(new RepeatModelTest());
 		runner.addCase(new RepeatCollisionTest());
 		runner.addCase(new TurnCollisionTest());
+		runner.addCase(new BiomeExitTest());
 		runner.addCase(new WeftCarverTest());
 		runner.addCase(new WeftModelTest());
 		runner.addCase(new RibbonAutomatonTest());

@@ -776,7 +776,7 @@ And: you cannot yet become one. You've seen the door. You're the wrong
 shape.
 
 **Built — `biomes.sprawl.SprawlBiome`.** A `{7,3}` floor, columns for parallax, and one amber home
-tile that returns to the hub — the geometry is real and nothing else is.
+tile that returns to the debug room — the geometry is real and nothing else is.
 Under it: `geometry.HyperbolicTiling` (ring populations and φ² growth
 tested), `HyperbolicProjection`, `HyperbolicSpace`, and
 `HyperbolicView`, which bridges the game's own `pos`/`forward` state to

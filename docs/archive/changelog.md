@@ -78,3 +78,29 @@ the cheapest path to the beacon and to the exit. A gate's lock counts as
 impassable, so the repair never hands the player a route that depends on one.
 30 of 30 layouts now solvable; the cost is ~27 extra hinges per layout, taking
 the hinged share of pairable walls from 19% to 31%. Shipped in `v0.16.3-dev.2`.
+
+## 2026-09-06 — Unmarked exits in biomes 4 and up still threw the player out
+
+The second report of the same bug, and the first fix was narrowed on the
+wrong test. On 2026-09-05 undrawn exit paintings were disarmed in the Fold
+and the Weft, and the other biomes were cleared by asking *does this biome
+have a visible landmark* — which the Ribbon (a monolith), the Defect (an
+apex spire) and the Knot (an asymmetric marker) all do. The question that
+mattered was whether anything is drawn **where the exit stands**, and in
+all three it is not: the Ribbon's monolith is at generation zero while its
+exit is at the present edge, the Defect's spire is on the apex while its
+exit is 0.35 radians round at spawn radius, and the Knot's landmark is
+deliberately off-centre while its exit is the room's origin. The Turn's
+exit is likewise unmarked, sitting just past the fundamental domain's own
+seam near one rail — reported directly as "right when two blocks are
+linked together, on one side."
+
+Fixed by setting `PaintingModel.triggersOnApproach` false on all four, so
+each painting still exists for the debug leave key
+(`game.Keybinds.LEAVE_BIOME`) and does nothing to a player walking past.
+The Sprawl was left triggering: its amber home tile is the brightest thing
+in that biome, so it is an exit rather than a trapdoor.
+
+Same commit, and asked for at the same time: every exit in biomes 4 and up
+now leads to `biomes.debug.DebugHubBiome` rather than the real hub, which
+is where a developer leaving a prototype space wants to land.
