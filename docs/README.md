@@ -14,9 +14,10 @@ page, the less it constrains what you do next.
 ## If you read one thing
 
 **[game/one-page.en.md](game/one-page.en.md)** — the whole design as a single
-annotated image: the curvature axis, the nine spaces, the four threads and
-the three endings. Built to be looked at rather than read, and to be printed
-and pinned up. Everything below expands one part of it.
+annotated image: the curvature axis and the cliff in it, the ten spaces with
+their figures, the seven verbs, the antagonist, the four threads and the
+three endings. Built to be looked at rather than read, and to be printed and
+pinned up. Everything below expands one part of it.
 Also in French: **[game/one-page.fr.md](game/one-page.fr.md)**.
 
 **[game/README.md](game/README.md)** — the premise, the pillars, the pitch,
@@ -26,7 +27,10 @@ in prose.
 
 ## 1. game — what we chose
 
-The whole-game direction. All nine of its spaces are built and walkable.
+The whole-game direction. Nine of its ten spaces have geometry you can walk;
+three of them have the mechanic that geometry exists for. The Garden has
+neither, and the Garden is the endgame — the one-pager carries the per-space
+breakdown.
 
 | File | Holds |
 |---|---|
@@ -34,13 +38,14 @@ The whole-game direction. All nine of its spaces are built and walkable.
 | [one-page.fr.md](game/one-page.fr.md) | The same page in French — the two are one design, changed together |
 | [README.md](game/README.md) | The premise, the pillars, the pitch, in prose |
 | [story.md](game/story.md) | Garden of Eden: the chosen storyline |
-| [world.md](game/world.md) | The nine spaces: what each *is*, teaches, and looks like |
+| [world.md](game/world.md) | The ten spaces: what each *is*, teaches, and looks like |
 | [systems.md](game/systems.md) | The verbs, and how knowledge gates progress without a journal |
 | [first-hour.md](game/first-hour.md) | The opening hour, beat by beat, with nothing explained |
 | [mathematics.md](game/mathematics.md) | Every geometric and automaton idea the game uses, with figures |
 | [art-and-audio.md](game/art-and-audio.md) | Art and audio direction, written as briefs |
 | [names.md](game/names.md) | The game is not called unbegotten any more. Candidates |
 | [inspirations.md](game/inspirations.md) | External references, and the specific lesson each carries |
+| [one-page/](game/one-page/README.md) | How the one-pager's figures are computed. Optional — the SVGs stand alone |
 
 ## 2. rules — what we must respect
 
@@ -80,6 +85,7 @@ want to know what it replaced.
 | [decisions.md](archive/decisions.md) | Decision records — what was chosen, what was rejected, and why |
 | [changelog.md](archive/changelog.md) | Bugs that have been fixed |
 | [forsaken-storylines/](archive/forsaken-storylines/) | The two stories that lost to Garden of Eden |
+| [one-page/](archive/one-page/README.md) | Superseded editions of the one-page design, kept verbatim |
 
 ---
 
