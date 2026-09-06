@@ -32,12 +32,13 @@ the questions I could not answer alone.
 
 ## The thesis
 
-The current game is a maze on the inside of a sphere. It has a real hook
-("see far, not near"), a genuinely deep piece of engineering nobody asked
-for (a geodesic cellular automaton with 12 pentagon defects), and a
-leading story candidate about being a pattern that outgrew its automaton.
-Those three things have been sitting next to each other without being
-*the same thing*.
+The game is structured as a walk through **the curvature line** — nine distinct
+geometries, from positive to negative curvature, each with its own legibility law.
+The first is a maze on the inside of a sphere: it has a real hook ("see far, not
+near"), a genuinely deep piece of engineering nobody asked for (a geodesic
+cellular automaton with 12 pentagon defects), and a leading story candidate about
+being a pattern that outgrew its automaton. Those three things have been sitting
+next to each other without being *the same thing*.
 
 They are the same thing. Here is the sentence that joins them:
 
@@ -45,7 +46,8 @@ They are the same thing. Here is the sentence that joins them:
 > whether a pattern can exist without a cause depends on which geometry
 > it runs on.**
 
-That is not a metaphor. It is a theorem, and it is the whole game.
+That is not a metaphor. It is a theorem, and it is the whole game — and it is why
+the progression through geometries is the progression through the story.
 
 ### The theorem
 
@@ -98,6 +100,12 @@ You could become an orphan here. That is the trap, and it is the game's
 central moral fact: **on the sphere, becoming uncaused is possible and it
 costs someone else their existence.** The bookkeeping is exact and it
 always balances. Somebody pays.
+
+But the sphere is not the end. The game progresses through nine geometries,
+each with its own freedom model. Walk toward negative curvature and the theorem
+inverts: freedom becomes free. The choice facing you is not whether to be
+uncaused, but *which geometry you are willing to become uncaused in* — and what
+that choice costs.
 
 So you walk down the curvature scale, from κ > 0, through flat, into
 κ < 0 — not because freedom is unavailable behind you, but because
