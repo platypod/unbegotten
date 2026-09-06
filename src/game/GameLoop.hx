@@ -153,7 +153,7 @@ class GameLoop {
 		// argument to whichever biome you're working on" as the way to get
 		// into a work-in-progress biome.
 		biomeRegistry.register(new DebugHubBiome(biomeRegistry.ids()), true);
-		enterBiome(DebugHubBiome.ID, false);
+		enterBiome(startupBiomeId(), false);
 
 		// F3 debug overlay (Minecraft-style): player position, camera angle,
 		// perf stats. Hidden by default; toggled in fixedUpdate.
@@ -180,6 +180,69 @@ class GameLoop {
 		window = hxd.Window.getInstance();
 		window.mouseMode = Relative(onMouseMove, true);
 		window.onMouseModeChange = keepWantingRelativeMouse;
+	}
+
+	/**
+		Which biome to open in: the one named by the page's own
+		`#biome=<id>` fragment, or the debug room.
+
+		**A verification affordance, not a feature.** The debug room already
+		replaced "edit `enterBiome`'s own argument to whichever biome you are
+		working on" as the way into a work-in-progress space (see its
+		registration above), and for a person walking there is fine. It is
+		not fine for checking a *rendering* change: `docs/rules/`'s own note
+		on manual verification records that driving this game from an
+		automated browser does not work, so a change to how a biome is
+		drawn could only ever be confirmed by asking someone to walk over
+		and look. A fragment naming the biome makes every space reachable
+		from a fixed vantage point, which is exactly what a screenshot needs.
+
+		The fragment rather than a query string because it never reaches the
+		server, so nothing about the static build or its caching changes —
+		`#biome=knot` and the bare page are the same request.
+
+		**Unknown ids fall back rather than throwing.** A typo, a stale
+		bookmark or a biome that has since been renamed should open the
+		debug room and let the player walk, not present a broken page;
+		`enterBiome` itself still throws on an unregistered id, which is the
+		right behaviour for a warp the game constructed and the wrong one
+		for a string a human typed.
+		@return the id to enter at startup.
+	**/
+	function startupBiomeId():String {
+		var requested = biomeIdFromFragment(js.Browser.location.hash);
+		if (requested == null) {
+			return DebugHubBiome.ID;
+		}
+		if (biomeRegistry.get(requested) == null) {
+			trace('no biome registered as "$requested" — opening the debug room instead');
+			return DebugHubBiome.ID;
+		}
+		return requested;
+	}
+
+	/**
+		Reads `biome=<id>` out of a URL fragment.
+
+		Parsed here rather than with a regex so the accepted shape is
+		obvious: `#biome=knot`, or `#biome=knot&anything=else` if this ever
+		gains a second parameter.
+
+		Public only so `game.StartupBiomeTest` can reach it: it is the one
+		piece of this class that is pure, and a URL a human types by hand is
+		exactly the kind of input worth pinning.
+		@param fragment the location hash, with or without its leading `#`.
+		@return the requested biome id, or null if the fragment does not name one.
+	**/
+	public static function biomeIdFromFragment(fragment:String):Null<String> {
+		var body = StringTools.startsWith(fragment, "#") ? fragment.substr(1) : fragment;
+		for (part in body.split("&")) {
+			if (StringTools.startsWith(part, "biome=")) {
+				var id = StringTools.trim(part.substr("biome=".length));
+				return id == "" ? null : id;
+			}
+		}
+		return null;
 	}
 
 	/**
