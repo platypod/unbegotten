@@ -3,10 +3,10 @@
 <rect x="0" y="0" width="1600" height="1850" fill="#05070A"/>
 <text x="48" y="92" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="46" fill="#E8EFF5" font-weight="bold" letter-spacing="-1">UNBEGOTTEN</text>
 <text x="400" y="92" font-family="Georgia, 'Times New Roman', Times, serif" font-size="27" fill="#8494A2" font-style="italic">Inengendré</text>
-<text x="48" y="122" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">Un labyrinthe sur la face interne d'une sphère. On lève la tête et l'on voit jusqu'à</text>
-<text x="48" y="144" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">l'autre bout du monde — jamais ce qui est juste à côté.</text>
+<text x="48" y="122" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">Neuf géométries le long de la ligne de courbure. On commence sur une sphère : on lève la tête pour voir loin —</text>
+<text x="48" y="144" font-family="Georgia, 'Times New Roman', Times, serif" font-size="15" fill="#8494A2" font-style="italic">mais jamais près. Marchez vers la courbure négative.</text>
 <text x="1552" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#5A6874" text-anchor="end" letter-spacing="1.6">CONCEPTION EN UNE PAGE</text>
-<text x="1552" y="100" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#8494A2" font-weight="bold" text-anchor="end">rev 2026-09-05</text>
+<text x="1552" y="100" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#8494A2" font-weight="bold" text-anchor="end">rev 2026-09-06</text>
 <text x="1552" y="120" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#5A6874" text-anchor="end">Haxe + Heaps / WebGL</text>
 <text x="1552" y="138" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" fill="#5A6874" text-anchor="end">build v0.16.0-dev.6</text>
 <line x1="48" y1="168" x2="1552" y2="168" stroke="#2A3846" stroke-width="1"/>
