@@ -81,6 +81,11 @@ class BiomeExitTest extends Test {
 
 	/** The four whose exits nothing is drawn at — see the class doc. **/
 	function unmarked():Array<Biome> {
-		return [cast new TurnBiome(), cast new DefectBiome(), cast new RibbonBiome(), cast new KnotBiome()];
+		return [
+			cast new TurnBiome(),
+			cast new DefectBiome(),
+			cast new RibbonBiome(),
+			cast new KnotBiome()
+		];
 	}
 }

@@ -126,8 +126,8 @@ class RibbonBiome implements Biome {
 	**/
 	public function exitPaintings():Array<PaintingModel> {
 		return [
-			new PaintingModel(new h3d.Vector(RibbonModel.xOf(RibbonModel.SEED_INDEX), 0, RibbonModel.PRESENT_EDGE), DebugHubBiome.ID,
-				RibbonModel.CELL_SIZE, false)
+			new PaintingModel(new h3d.Vector(RibbonModel.xOf(RibbonModel.SEED_INDEX), 0, RibbonModel.PRESENT_EDGE), DebugHubBiome.ID, RibbonModel.CELL_SIZE,
+				false)
 		];
 	}
 
