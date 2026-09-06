@@ -1,6 +1,11 @@
 # Project guideline — unbegotten
 
-A 3D maze wrapped onto the inside of a sphere: the player walks the interior surface, and can raise their head to see clear across to the far side — but not what's in their immediate vicinity. Built in Haxe + Heaps, primarily vibe-coded (Claude does most of the writing, hooman directs and reviews).
+A game structured around **the curvature line**: the world is a single axis from
+positive curvature (sphere) through flat (torus, Möbius strip, cone) to negative
+curvature (hyperbolic plane, genus-2 surface). The player walks nine distinct
+geometries, learning to navigate each by its own legibility law. Built in Haxe +
+Heaps, primarily vibe-coded (Claude does most of the writing, hooman directs and
+reviews).
 
 This file holds the non-negotiables — the "what". Everything else lives
 under [`docs/`](docs/README.md), which is sorted by how much it binds you:
@@ -75,7 +80,9 @@ Before considering any non-trivial change done:
 3. Run the `utest` suite — covers game logic (state machines, combat/inventory math, save/load, data parsing), not rendering/scene code.
 4. CI runs the same compile + test suite on every push (GitHub Actions) — treat a red CI run as blocking.
 
-**Pre-commit hook (local, blocking):** `.githooks/pre-commit` (wired via `git config core.hooksPath .githooks`) runs `make fmt lint check test` before every commit — the same targets CI runs. A failing pre-commit blocks the commit; use `git commit --no-verify` only for genuinely exceptional cases.
+**Pre-commit hook (local, blocking):** `.githooks/pre-commit` (wired via `git config core.hooksPath .githooks`) runs `make fmt-check lint check test` before every commit — the same targets CI runs. A failing pre-commit blocks the commit; use `git commit --no-verify` only for genuinely exceptional cases.
+
+It checks formatting rather than applying it, and that is deliberate: the hook used to run `make fmt`, which rewrites files but cannot re-stage them without sweeping up whatever else is modified in the working tree — so commits landed unformatted with the correction stranded outside them, and CI went red. On a formatting difference the hook now runs `make fmt` for you and stops, leaving your index untouched; stage the files you meant to commit and commit again.
 
 When touching multiple files or anything architectural, check `docs/rules/guidelines.md` first — don't improvise a pattern that contradicts it. If a task seems to require breaking one of the rules above (especially the macro rule), stop and ask rather than proceeding.
 

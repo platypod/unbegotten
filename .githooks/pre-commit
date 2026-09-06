@@ -3,4 +3,28 @@
 #   git config core.hooksPath .githooks
 # Escape hatch for genuinely exceptional cases: git commit --no-verify
 set -e
-make fmt lint check test
+
+# `fmt-check`, not `fmt`. The hook used to run `make fmt`, which *rewrites*
+# files rather than reporting on them — and a hook cannot re-stage what it
+# rewrote without also sweeping up whatever else happens to be modified in the
+# working tree, including hunks the author deliberately left unstaged. So the
+# old hook let a commit through with the formatter's corrections stranded
+# outside it: the commit was unformatted, CI's own `fmt-check` failed on it,
+# and the fix sat in the working tree looking like an unrelated change. That
+# happened on v0.16.3-dev.5.
+#
+# Reporting instead of rewriting keeps the index the author's own. The
+# formatter is still run for them below, so the correction is one `git add`
+# away — it is just never applied behind their back.
+if ! make fmt-check; then
+	echo
+	echo "pre-commit: formatting differs. Running the formatter for you..."
+	make fmt
+	echo
+	echo "pre-commit: formatter applied. Review, stage the files you meant to"
+	echo "            commit, and commit again — the index was left untouched"
+	echo "            on purpose, so nothing you left unstaged got swept in."
+	exit 1
+fi
+
+make lint check test

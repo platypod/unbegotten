@@ -16,7 +16,11 @@ All are installed via Homebrew on macOS; see your platform's Haxe docs for other
 
 Format Haxe source with `haxe-formatter`, or check without modifying.
 
-- **When**: Before every commit (the pre-commit hook runs this automatically).
+- **When**: Before every commit. The pre-commit hook runs `fmt-check` and
+  **blocks** on a difference rather than silently rewriting your files — it
+  then runs `fmt` for you, so the correction is one `git add` away. It cannot
+  re-stage that itself without also sweeping up hunks you deliberately left
+  unstaged, and a hook has no business editing your index.
 - **CI**: `fmt-check` runs on every push; red CI blocks merge.
 
 ### `make lint`
