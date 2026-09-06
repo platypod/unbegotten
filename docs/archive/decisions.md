@@ -1927,3 +1927,122 @@ in [storylines/](../game/README.md).
   chain of hinges. Adding slack — repairing along a random path rather than
   a shortest one — is the obvious next knob, and is deliberately not taken
   yet, since a level nobody has played is the wrong place to start tuning.
+
+## The Weft's generator: propagation over antipodal pairs (2026-09-06)
+
+- **2026-09-06 — "carve a maze in the north, force the south to its
+  complement" (`WeftModel.enforceOpposite` as the generator) — REJECTED**,
+  replaced by `WeftCarver`, which decides the whole sphere at once by
+  constraint propagation over antipodal pairs.
+
+  Recorded at length because most of the value here is in the four
+  approaches that were measured and did *not* work, and in the frame that
+  explained why.
+
+  **The diagnosis: the invariant conserves connectivity.** Exactly one wall
+  per antipodal pair is open, always — 224 open paired walls across 30
+  layouts with zero variance, since it is the rule rather than a statistic.
+  The only walls the generator spends freely are the 56 unpaired ones in
+  the pole collars. So the open-edge count is pinned near 245 for 240
+  cells, against the 239 a spanning tree needs: **about six edges of
+  slack**, and that is arithmetic. The grid is 4-regular, so `|E| ≈ 2|V|`,
+  the rule halves it to `|E|/2 ≈ |V|`, and connectivity needs `|V| - 1`.
+  The space sits on the connectivity threshold by construction.
+
+  **Three levers, all measured, all confirming it is zero-sum:**
+
+  | lever | result |
+  |---|---|
+  | open every pole-collar wall (the maximum slack the rule allows) | 4.8 → 3.0 components; the slack cannot reach mid-latitudes |
+  | braid the base carve, 0% → 100% | 4.5 → **6.8** components — *worse* |
+  | bind only a fraction of pairs, 10% → 100% | 1 → 4.6 components at just 10% bound |
+
+  Braiding making it worse is the clean proof: every dead end opened in the
+  north forces a wall shut in the south, one for one.
+
+  **The frame: this space is a ℤ/2 voltage graph.** The antipodal map is a
+  free involution on the pairable part, and by the **Gross–Tucker theorem**
+  a group acting freely on a graph makes that graph the *derived graph* of a
+  voltage assignment on the quotient. The choice of which lift of each
+  quotient edge is open **is** the voltage. That is what named the decision
+  variables correctly: 224 orbits, not 504 walls. Sources:
+  [Wolfram MathWorld, "Voltage Graph"](https://mathworld.wolfram.com/VoltageGraph.html);
+  J. L. Gross and T. W. Tucker, *Generating all graph coverings by
+  permutation voltage assignments*, Discrete Mathematics 18 (1977)
+  ([ScienceDirect](https://www.sciencedirect.com/science/article/pii/0012365X77901315));
+  Gross and Tucker, *Topological Graph Theory* (1987), for the derived-graph
+  construction and its connectivity criterion.
+
+  **Four generators, measured on the same 30-layout harness** (components,
+  and the largest, out of 240 cells):
+
+  | generator | components | largest | verdict |
+  |---|---|---|---|
+  | carve north, complement south | 5.1 | 190 | the old one |
+  | orbit-Kruskal, one greedy pass | 6.3 | 232 | REJECTED — worse than doing nothing clever |
+  | hill-climb using the player's own flip as the search move | 2.4 | — | REJECTED — stalls |
+  | **constraint propagation over orbits** | **2.8** | **238** | ACCEPTED |
+
+  *Greedy* fails for an instructive reason: early on almost every pair
+  merges something whichever way it is spent, so the pass burns its freedom
+  on coin flips and starves the pairs that are genuinely forced later.
+
+  *Hill-climbing* is the prettiest of the four, and is recorded because it
+  is the obvious thing to reach for again. Flipping a pair is the only move
+  that preserves the invariant, so it is simultaneously the player's verb
+  and the natural search step — a generator playing its own game. It gets
+  4.7 components down to 2.0 in about three flips and then stops dead:
+  escaping the last plateau needs two simultaneous flips, which a
+  single-flip climb cannot see. Smoothing the objective (sum of squared
+  component sizes rather than the raw count, to give the climb a gradient
+  across plateaus) moved it from 6/30 fully connected to 7/30, which is not
+  a fix.
+
+  *Propagation* — commit only the pairs where exactly one lift merges two
+  components, re-scan because each commitment changes what is forced, and
+  coin-flip a single pair only when a whole pass finds nothing forced. Unit
+  propagation, with orbits as the variables. The unpaired collar walls,
+  being free, are spent first so the propagation has as much settled
+  structure as possible to reason against; spending them last (as the first
+  prototype did) gives 3.5 components and 237 rather than 2.8 and 238.
+
+  **What was accepted, and its costs.** Two, both real:
+
+  - *It does not reach one component*, and is not meant to — around two
+    cells stay stranded, against fifty before. The solvability floor stays
+    `WeftModel.hingesFor`'s repair; the gain is that the repair now has
+    little to do (hinges after repair fall from 69.5 to 57.7 per layout),
+    so the guaranteed route stops dominating the level.
+  - *Dead ends rise from 30 to 49 per layout.* Propagation is
+    Kruskal-flavoured, and `MazeStyle`'s own notes predict exactly this —
+    "many short dead-ends" against randomized DFS's long corridors. Whether
+    that suits a space about surveying the far side before committing to a
+    direction is a play question, not a measurable one.
+
+  **Neither hemisphere is individually "the carved one" any more**, which
+  deliberately reverses the 2026-08 decision recorded above. What that
+  decision was protecting survives: the far side is still the exact
+  photographic negative of the near side, because that follows from the
+  invariant rather than from which hemisphere generated. What is lost is
+  the north reading as a maze in its own right — the trade is one maze
+  wrapped on a sphere, instead of a maze and its complement.
+
+  **Not taken, and worth taking next:** braiding *within* the invariant —
+  flipping a pair to open a dead end whenever doing so does not disconnect
+  anything. Ordinary braiding was measured and makes things worse, but that
+  is braiding applied *before* the constraint; braiding as a flip is a
+  different operation and is the obvious lever on the dead-end count above.
+  Also unexplored: the 4-regular grid is the root cause, and a 6-neighbour
+  sphere would give `|E|/2 = 1.5|V|` and dissolve the problem entirely — but
+  the geodesic grid exists only as research code under `src/tools/geodesic/`,
+  so that is a project rather than a swap.
+
+  `make fmt`/`lint`/`check`/`test` clean. New `WeftCarverTest` asserts the
+  invariant holds by construction, that no pair is left undecided, that the
+  carve is deterministic for a given random source, and — the point — that
+  the sphere comes out nearly whole and beats the old pipeline run side by
+  side. The connectivity assertions were checked against the old pipeline
+  before being trusted: pointed at `enforceOpposite` they fail.
+  **Not interactively verified** — same standing limitation
+  ([CLAUDE.md](../../CLAUDE.md)); nothing here says whether 49 dead ends
+  plays better or worse than 30.

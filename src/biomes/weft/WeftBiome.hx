@@ -170,13 +170,20 @@ class WeftBiome implements Biome {
 	var echo:Null<h3d.scene.Object>;
 
 	public function new(?random:Void->Float) {
-		reload(MazeGenerator.generate(random));
+		reload(WeftCarver.carve(random));
 	}
 
 	/**
 		Adopts a layout, forces the opposite-rule invariant onto it, and
 		seals up to `GATE_COUNT` vaults behind gates (if this layout has
 		valid candidates for any).
+
+		**`enforceOpposite` is still called, and is now a guard rather than
+		a generator.** `WeftCarver` produces the invariant by construction,
+		so on a freshly carved layout this is a no-op; it earns its place on
+		the other path into here, `restore`, which will happily be handed a
+		maze file saved from any other biome (see `GameLoop.onMazeFileChosen`)
+		and has no reason to trust it.
 
 		**The exit is no longer derived from the layout**; it stands at
 		`WeftModel.exitNode`, a fixed cell, and the layout has no say in

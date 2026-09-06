@@ -195,6 +195,32 @@ space's legibility law is that you can see the far side, and an objective
 you cannot see across the interior is one the space has hidden from its
 own instrument.
 
+**The generator (2026-09-06), and why the obvious ones fail.** The Weft is
+carved by `WeftCarver`, which decides the **whole sphere at once** rather
+than carving the north and complementing the south.
+
+The reason is that the invariant *conserves* connectivity. Exactly one wall
+per antipodal pair is open — always, by the rule — so the open-edge count is
+pinned near 245 for 240 cells, against the 239 a spanning tree needs. The
+Weft runs on about six edges of slack, and that is arithmetic rather than
+luck: the grid is 4-regular, the rule halves its edges, and a maze needs
+one per cell. Connectivity therefore cannot be *added* to this space, only
+moved between hemispheres — which is why braiding the base carve made
+fragmentation *worse* (4.5 components to 6.8), and why carving one
+hemisphere well was always optimising half a sphere at the cost of the
+other half.
+
+Formally this space is a **ℤ/2 voltage graph**: the antipodal map is a free
+involution, and by Gross–Tucker the sphere is the derived graph of a voltage
+assignment on its own quotient, the voltage being precisely which lift of
+each wall is open. That frame is what names the decision variables — 224
+antipodal pairs, not 504 walls. `WeftCarver` then commits pairs by
+constraint propagation: only the ones where exactly one lift joins two
+regions, re-scanning after each round, coin-flipping a single pair when
+nothing is forced. Largest connected region: 190 of 240 cells before, 238
+after. The full record, including the three approaches that failed and the
+sources, is in [decisions.md](../archive/decisions.md).
+
 Hinges are computed per layout, not per wall, and this matters: the
 sphere the Weft generates is *not connected* — complementing a spanning
 tree leaves around four or five separate components — and with most walls
@@ -206,7 +232,9 @@ spawn, the beacon and the exit. See
 
 Open: whether one hinge in five is the right scarcity, whether the repair
 should take a *random* route rather than the cheapest one (the cheapest is
-close to a geodesic, so systematic probing follows it), whether hinges
+close to a geodesic, so systematic probing follows it), whether the carve's
+higher dead-end count (30 per layout to 49) suits a space about surveying
+before committing, whether hinges
 should eventually be *visible* as a distinct wall dialect (deferred on
 purpose — hunting for them unmarked may be the interesting part, or the
 tedious one), and whether the gates still earn their place.
