@@ -10,7 +10,7 @@ that the break points are a design decision and diff like one.
 EN = dict(
     lang="en",
     gloss=None,
-    tagline="Somebody always pays. Go where nobody has to.",
+    tagline="Explore curved spaces. Figure out the path of evolution.",
     subtagline="You are a pattern with no predecessor, looking for a world that allows one.",
     stamp_kind="ONE-PAGE DESIGN · v2",
     rev="rev 2026-09-07",
@@ -277,7 +277,7 @@ EN = dict(
 FR = dict(
     lang="fr",
     gloss="Inengendré",
-    tagline="Quelqu'un paie toujours. Allez là où personne n'a à payer.",
+    tagline="Explorez les espaces courbes. Découvrez le chemin de l'évolution.",
     subtagline="Vous êtes un motif sans prédécesseur, en quête d'un monde qui l'autorise.",
     stamp_kind="CONCEPTION EN UNE PAGE · v2",
     rev="rev 2026-09-07",
